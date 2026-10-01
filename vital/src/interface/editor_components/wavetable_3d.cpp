@@ -322,6 +322,14 @@ bool Wavetable3d::updateRenderValues() {
   last_render_type_ = render_type_;
   last_loading_wavetable_ = loading_wavetable_;
 
+  if (wavetable_) {
+    int update_count = wavetable_->getUpdateCount();
+    if (update_count != last_wavetable_update_count_) {
+      last_wavetable_update_count_ = update_count;
+      new_morph = true;
+    }
+  }
+
   vital::poly_float wave_frame = getOutputsTotal(wave_frame_outputs_, frame_slider_->getValue());
   vital::poly_float spectral_morph_value = getSpectralMorphValue();
   vital::poly_float distortion_value = getDistortionValue();
@@ -672,10 +680,10 @@ void Wavetable3d::respondToMenuCallback(int option) {
     try {
       json parsed_json_state = json::parse(text.toStdString(), nullptr, false);
       if (WavetableCreator::isValidJson(parsed_json_state)) {
-        loading_wavetable_ = true;
+        setLoadingWavetable(true);
         for (Listener* listener : listeners_)
           listener->loadWavetable(parsed_json_state);
-        loading_wavetable_ = false;
+        setLoadingWavetable(false);
 
         repaintBackground();
         setDirty();

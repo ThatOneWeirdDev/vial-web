@@ -110,6 +110,7 @@ namespace vital {
 
   void Wavetable::postProcess(float max_span) {
     static constexpr float kMinAmplitudePhase = 0.1f;
+    update_count_++;
 
     if (max_span > 0.0f) {
       float scale = 2.0f / max_span;

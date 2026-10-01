@@ -93,6 +93,10 @@ namespace vital {
         return current_data_->version;
       }
 
+      force_inline int getUpdateCount() const {
+        return update_count_.load();
+      }
+
       force_inline int clampActiveFrame(int frame) {
         return std::min(frame, active_audio_data_.load()->num_frames - 1);
       }
@@ -147,6 +151,7 @@ namespace vital {
       int max_frames_;
       WavetableData* current_data_;
       std::atomic<WavetableData*> active_audio_data_;
+      std::atomic<int> update_count_ { 0 };
       std::unique_ptr<WavetableData> data_;
       bool shepard_table_;
 

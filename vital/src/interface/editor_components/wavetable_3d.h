@@ -142,7 +142,11 @@ class Wavetable3d : public OpenGlComponent, public AudioFileDropSource {
     }
 
     void addListener(Listener* listener) { listeners_.push_back(listener); }
-    void setLoadingWavetable(bool loading) { loading_wavetable_ = loading; }
+    void setLoadingWavetable(bool loading) {
+      if (loading_wavetable_ && !loading)
+        last_loading_wavetable_ = true;
+      loading_wavetable_ = loading;
+    }
     void setDirty() { last_spectral_morph_type_ = -1; }
     vital::Wavetable* getWavetable() { return wavetable_; }
 
@@ -209,6 +213,7 @@ class Wavetable3d : public OpenGlComponent, public AudioFileDropSource {
     bool animate_;
     bool loading_wavetable_;
     bool last_loading_wavetable_;
+    int last_wavetable_update_count_ = -1;
     RenderType render_type_;
     RenderType last_render_type_;
     bool active_;
