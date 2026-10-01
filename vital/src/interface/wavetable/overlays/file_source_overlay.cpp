@@ -14,6 +14,7 @@
  * along with vital.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "file_dialogs.h"
 #include "file_source_overlay.h"
 
 #include "audio_file_drop_source.h"
@@ -442,9 +443,12 @@ void FileSourceOverlay::loadFile(const File& file) {
 }
 
 void FileSourceOverlay::loadFilePressed() {
-  FileChooser load_file("Load Audio File", File::getSpecialLocation(File::userHomeDirectory), String("*.wav"));
-  if (load_file.browseForFileToOpen())
-    loadFile(load_file.getResult());
+  Component::SafePointer<FileSourceOverlay> safe_this(this);
+  file_dialogs::openFile("Load Audio File", File::getSpecialLocation(File::userHomeDirectory), String("*.wav"),
+                         [safe_this](const File& file) mutable {
+    if (safe_this != nullptr)
+      safe_this->loadFile(file);
+  });
 }
 
 void FileSourceOverlay::buttonClicked(Button* clicked_button) {

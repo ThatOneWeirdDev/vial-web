@@ -138,7 +138,12 @@ String SystemStats::getStackBacktrace()
 {
     String result;
 
-   #if JUCE_ANDROID || JUCE_MINGW
+   #if JUCE_EMSCRIPTEN
+    char buffer[8192] = {};
+    emscripten_get_callstack (EM_LOG_C_STACK | EM_LOG_JS_STACK, buffer, (int) sizeof (buffer) - 1);
+    result << buffer;
+
+   #elif JUCE_ANDROID || JUCE_MINGW
     jassertfalse; // sorry, not implemented yet!
 
    #elif JUCE_WINDOWS

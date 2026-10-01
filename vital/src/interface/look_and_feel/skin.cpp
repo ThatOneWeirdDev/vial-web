@@ -16,6 +16,7 @@
 
 #include "skin.h"
 #include "default_look_and_feel.h"
+#include "file_dialogs.h"
 #include "full_interface.h"
 #include "synth_constants.h"
 #include "synth_section.h"
@@ -640,21 +641,25 @@ class SkinColorPicker : public Component, public Button::Listener, public Slider
 
     void buttonClicked(Button* clicked_button) override {
       if (clicked_button == &load_button_) {
-        FileChooser open_box("Open Skin", File(), String("*.") + vital::kSkinExtension);
-        if (open_box.browseForFileToOpen()) {
-          if (!skin_->loadFromFile(open_box.getResult())) {
+        Component::SafePointer<Component> safe_this(this);
+        file_dialogs::openFile("Open Skin", File(), String("*.") + vital::kSkinExtension, [this, safe_this](const File& file) mutable {
+          if (safe_this == nullptr)
+            return;
+          if (!skin_->loadFromFile(file)) {
             AlertWindow::showNativeDialogBox("Error opening skin", "Skin file is corrupted and won't load.", false);
             return;
           }
           setSliderValues();
           repaintWithSettings();
-        }
+        });
         return;
       }
       if (clicked_button == &save_button_) {
-        FileChooser save_box("Save Skin", File(), String("*.") + vital::kSkinExtension);
-        if (save_box.browseForFileToSave(true))
-          skin_->saveToFile(save_box.getResult().withFileExtension(vital::kSkinExtension));
+        Component::SafePointer<Component> safe_this(this);
+        file_dialogs::saveFile("Save Skin", File(), String("*.") + vital::kSkinExtension, [this, safe_this](const File& file) mutable {
+          if (safe_this != nullptr)
+            skin_->saveToFile(file.withFileExtension(vital::kSkinExtension));
+        });
 
         return;
       }

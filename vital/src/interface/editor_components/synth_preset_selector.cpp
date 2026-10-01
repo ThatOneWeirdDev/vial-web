@@ -17,6 +17,7 @@
 #include "synth_preset_selector.h"
 
 #include "paths.h"
+#include "file_dialogs.h"
 #include "skin.h"
 #include "default_look_and_feel.h"
 #include "fonts.h"
@@ -281,23 +282,29 @@ void SynthPresetSelector::savePreset() {
 
 void SynthPresetSelector::importPreset() {
   SynthGuiInterface* parent = findParentComponentOfClass<SynthGuiInterface>();
+  if (parent == nullptr)
+    return;
+
   File active_file = parent->getSynth()->getActiveFile();
-  FileChooser open_box("Open Preset", active_file, String("*.") + vital::kPresetExtension);
-  if (!open_box.browseForFileToOpen())
-    return;
-  
-  File choice = open_box.getResult();
-  if (!choice.exists())
-    return;
-  
-  std::string error;
-  if (!parent->getSynth()->loadFromFile(choice, error)) {
-    std::string name = ProjectInfo::projectName;
-    error = "There was an error open the preset. " + error;
-    AlertWindow::showNativeDialogBox("Error opening preset", error, false);
-  }
-  else
-    parent->externalPresetLoaded(choice);
+  Component::SafePointer<SynthPresetSelector> safe_this(this);
+  file_dialogs::openFile("Open Preset", active_file, String("*.") + vital::kPresetExtension,
+                         [safe_this](const File& choice) mutable {
+    if (safe_this == nullptr || !choice.exists())
+      return;
+
+    SynthGuiInterface* parent = safe_this->findParentComponentOfClass<SynthGuiInterface>();
+    if (parent == nullptr)
+      return;
+
+    std::string error;
+    if (!parent->getSynth()->loadFromFile(choice, error)) {
+      std::string name = ProjectInfo::projectName;
+      error = "There was an error open the preset. " + error;
+      AlertWindow::showNativeDialogBox("Error opening preset", error, false);
+    }
+    else
+      parent->externalPresetLoaded(choice);
+  });
 }
 
 void SynthPresetSelector::exportPreset() {
@@ -307,18 +314,32 @@ void SynthPresetSelector::exportPreset() {
 
   SynthBase* synth = parent->getSynth();
   File active_file = synth->getActiveFile();
-  FileChooser save_box("Export Preset", File(), String("*.") + vital::kPresetExtension);
-  if (!save_box.browseForFileToSave(true))
-    return;
-  
-  synth->saveToFile(save_box.getResult().withFileExtension(vital::kPresetExtension));
-  parent->externalPresetLoaded(synth->getActiveFile());
+  Component::SafePointer<SynthPresetSelector> safe_this(this);
+  file_dialogs::saveFile("Export Preset", active_file, String("*.") + vital::kPresetExtension,
+                         [safe_this](const File& file) mutable {
+    if (safe_this == nullptr)
+      return;
+
+    SynthGuiInterface* parent = safe_this->findParentComponentOfClass<SynthGuiInterface>();
+    if (parent == nullptr)
+      return;
+
+    SynthBase* synth = parent->getSynth();
+    synth->saveToFile(file.withFileExtension(vital::kPresetExtension));
+    parent->externalPresetLoaded(synth->getActiveFile());
+  });
 }
 
 void SynthPresetSelector::importBank() {
-  FileChooser import_box("Import Bank", File(), String("*.") + vital::kBankExtension);
-  if (import_box.browseForFileToOpen()) {
-    File result = import_box.getResult();
+  Component::SafePointer<SynthPresetSelector> safe_this(this);
+  file_dialogs::openFile("Import Bank", File(), String("*.") + vital::kBankExtension, [safe_this](const File& result) mutable {
+    if (safe_this != nullptr)
+      safe_this->importBankFile(result);
+  });
+}
+
+void SynthPresetSelector::importBankFile(const File& result) {
+  {
     FileInputStream input_stream(result);
     if (input_stream.openedOk()) {
       File data_directory = LoadSave::getDataDirectory();
@@ -346,10 +367,15 @@ void SynthPresetSelector::exportBank() {
 }
 
 void SynthPresetSelector::loadTuningFile() {
-  SynthGuiInterface* parent = findParentComponentOfClass<SynthGuiInterface>();
-  FileChooser load_box("Load Tuning", File(), Tuning::allFileExtensions());
-  if (load_box.browseForFileToOpen())
-    parent->getSynth()->loadTuningFile(load_box.getResult());
+  Component::SafePointer<SynthPresetSelector> safe_this(this);
+  file_dialogs::openFile("Load Tuning", File(), Tuning::allFileExtensions(), [safe_this](const File& file) mutable {
+    if (safe_this == nullptr)
+      return;
+
+    SynthGuiInterface* parent = safe_this->findParentComponentOfClass<SynthGuiInterface>();
+    if (parent)
+      parent->getSynth()->loadTuningFile(file);
+  });
 }
 
 void SynthPresetSelector::clearTuning() {
@@ -403,13 +429,15 @@ void SynthPresetSelector::openSkinDesigner() {
 }
 
 void SynthPresetSelector::loadSkin() {
-  FileChooser open_box("Open Skin", File(), String("*.") + vital::kSkinExtension);
-  if (open_box.browseForFileToOpen()) {
-    File loaded = open_box.getResult();
+  Component::SafePointer<SynthPresetSelector> safe_this(this);
+  file_dialogs::openFile("Open Skin", File(), String("*.") + vital::kSkinExtension, [safe_this](const File& loaded) mutable {
+    if (safe_this == nullptr)
+      return;
+
     loaded.copyFileTo(LoadSave::getDefaultSkin());
-    full_skin_->loadFromFile(loaded);
-    repaintWithSkin();
-  }
+    safe_this->full_skin_->loadFromFile(loaded);
+    safe_this->repaintWithSkin();
+  });
 }
 
 void SynthPresetSelector::clearSkin() {

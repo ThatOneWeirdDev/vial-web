@@ -119,7 +119,7 @@ void SynthEditor::releaseResources() {
 
 void SynthEditor::resized() {
   if (gui_)
-    gui_->setBounds(getBounds());
+    gui_->setBounds(getLocalBounds());
 }
 
 void SynthEditor::timerCallback() {

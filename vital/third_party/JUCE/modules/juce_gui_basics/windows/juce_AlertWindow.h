@@ -394,7 +394,7 @@ public:
                             it'll show a box with just an ok button
         @returns true if the ok button was pressed, false if they pressed cancel.
     */
-   #if JUCE_MODAL_LOOPS_PERMITTED
+   #if JUCE_MODAL_LOOPS_PERMITTED || JUCE_EMSCRIPTEN
     static bool JUCE_CALLTYPE showNativeDialogBox (const String& title,
                                                    const String& bodyText,
                                                    bool isOkCancel);

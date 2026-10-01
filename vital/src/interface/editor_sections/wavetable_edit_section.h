@@ -107,6 +107,7 @@ class WavetableEditSection : public SynthSection,
     void importWavetable();
     void exportWavetable();
     void exportToWav();
+    void exportToWavFile(const File& chosen);
     void loadFile(const File& wavetable_file) override;
     File getCurrentFile() override { return File(wavetable_creator_->getLastFileLoaded()); }
 

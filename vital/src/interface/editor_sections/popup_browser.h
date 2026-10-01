@@ -175,6 +175,7 @@ class SelectionList : public SynthSection, ScrollBar::Listener {
     void mouseDown(const MouseEvent& e) override;
     void mouseDoubleClick(const MouseEvent& e) override;
     void addAdditionalFolder();
+    void addAdditionalFolder(const File& result);
     void removeAdditionalFolder(const File& folder);
 
     void select(const File& selection);

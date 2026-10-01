@@ -88,6 +88,15 @@
   #undef APIENTRY
   #undef CLEAR_TEMP_APIENTRY
  #endif
+#elif JUCE_EMSCRIPTEN
+ #undef JUCE_OPENGL_ES
+ #define JUCE_OPENGL_ES 1
+ #include <GLES3/gl3.h>
+ #include <GLES2/gl2ext.h>
+ extern "C" void* juce_web_glMapBufferRange (GLenum target, GLintptr offset, GLsizeiptr length, GLbitfield access);
+ extern "C" GLboolean juce_web_glUnmapBuffer (GLenum target);
+ #define glMapBufferRange juce_web_glMapBufferRange
+ #define glUnmapBuffer juce_web_glUnmapBuffer
 #elif JUCE_LINUX
  #include <GL/gl.h>
  #undef KeyPress

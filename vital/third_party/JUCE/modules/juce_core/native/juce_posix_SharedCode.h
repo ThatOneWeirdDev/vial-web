@@ -928,6 +928,8 @@ void JUCE_CALLTYPE Thread::setCurrentThreadName (const String& name)
     {
         [[NSThread currentThread] setName: juceStringToNS (name)];
     }
+   #elif JUCE_EMSCRIPTEN
+    ignoreUnused (name);
    #elif JUCE_LINUX || JUCE_ANDROID
     #if ((JUCE_LINUX && (__GLIBC__ * 1000 + __GLIBC_MINOR__) >= 2012) \
           || JUCE_ANDROID && __ANDROID_API__ >= 9)
@@ -974,7 +976,7 @@ void JUCE_CALLTYPE Thread::yield()
    calls (the API for these has changed about quite a bit in various Linux
    versions, and a lot of distros seem to ship with obsolete versions)
 */
-#if defined (CPU_ISSET) && ! defined (SUPPORT_AFFINITIES)
+#if defined (CPU_ISSET) && ! defined (SUPPORT_AFFINITIES) && ! JUCE_EMSCRIPTEN
  #define SUPPORT_AFFINITIES 1
 #endif
 

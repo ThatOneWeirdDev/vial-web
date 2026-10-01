@@ -49,6 +49,9 @@
  #import <IOKit/hid/IOHIDKeys.h>
  #import <IOKit/pwr_mgt/IOPMLib.h>
 
+#elif JUCE_EMSCRIPTEN
+ #include <deque>
+
 #elif JUCE_LINUX
  #include <unistd.h>
 #endif
@@ -88,6 +91,9 @@
  #if JUCE_EVENTS_INCLUDE_WINRT_WRAPPER
   #include "native/juce_win32_WinRTWrapper.cpp"
  #endif
+
+#elif JUCE_EMSCRIPTEN
+ #include "native/juce_emscripten_Messaging.cpp"
 
 #elif JUCE_LINUX
  #include "native/juce_linux_Messaging.cpp"

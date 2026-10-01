@@ -691,6 +691,19 @@ int AlertWindow::showYesNoCancelBox (AlertIconType iconType,
     return info.invoke();
 }
 
+#if JUCE_EMSCRIPTEN && ! JUCE_MODAL_LOOPS_PERMITTED
+bool AlertWindow::showNativeDialogBox (const String& title,
+                                       const String& bodyText,
+                                       bool isOkCancel)
+{
+    if (isOkCancel)
+        return NativeMessageBox::showOkCancelBox (AlertWindow::NoIcon, title, bodyText, nullptr, nullptr);
+
+    NativeMessageBox::showMessageBoxAsync (AlertWindow::NoIcon, title, bodyText);
+    return true;
+}
+#endif
+
 #if JUCE_MODAL_LOOPS_PERMITTED
 bool AlertWindow::showNativeDialogBox (const String& title,
                                        const String& bodyText,

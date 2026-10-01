@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <meta name="theme-color" content="#1d2125">
+  <meta name="description" content="Vial — the open-source spectral warping wavetable synthesizer, running entirely in your browser.">
+  <title>Vial</title>
+  <link rel="icon" type="image/png" href="icon.png">
+  <script src="coi-serviceworker.js"></script>
+  <style>
+    :root {
+      --bg: #1d2125;
+      --panel: #26292d;
+      --text: #e6e7e9;
+      --muted: #8b9096;
+      --accent: #aa88ff;
+      --accent-2: #4fc3f7;
+    }
+
+    html, body {
+      margin: 0;
+      height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      overflow: hidden;
+      overscroll-behavior: none;
+      font-family: "Lato", "Montserrat", system-ui, -apple-system, "Segoe UI", sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    #juce-root {
+      position: fixed;
+      inset: 0;
+      overflow: hidden;
+      background: var(--bg);
+    }
+
+    #loader {
+      position: fixed;
+      inset: 0;
+      z-index: 100000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: radial-gradient(1200px 600px at 50% 40%, #262a30 0%, var(--bg) 70%);
+      transition: opacity 0.35s ease;
+    }
+
+    #loader.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .card {
+      width: min(420px, calc(100vw - 32px));
+      text-align: center;
+    }
+
+    .mark {
+      width: 72px;
+      height: 72px;
+      margin: 0 auto 18px;
+      border-radius: 50%;
+      border: 3px solid var(--accent);
+      box-shadow: 0 0 40px rgba(170, 136, 255, 0.25);
+      display: grid;
+      place-items: center;
+      font-size: 34px;
+      font-weight: 300;
+      letter-spacing: 1px;
+      color: var(--accent);
+    }
+
+    h1 {
+      margin: 0 0 6px;
+      font-weight: 300;
+      font-size: 28px;
+      letter-spacing: 6px;
+      text-transform: uppercase;
+    }
+
+    .sub {
+      margin: 0 0 26px;
+      color: var(--muted);
+      font-size: 13px;
+      letter-spacing: 0.3px;
+    }
+
+    .bar {
+      height: 4px;
+      background: #33373c;
+      border-radius: 4px;
+      overflow: hidden;
+    }
+
+    .bar > div {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, var(--accent), var(--accent-2));
+      transition: width 0.15s linear;
+    }
+
+    #status {
+      margin-top: 12px;
+      min-height: 18px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    #status.error {
+      color: #ff8a80;
+      line-height: 1.5;
+    }
+
+    .legal {
+      margin-top: 28px;
+      color: #6b7076;
+      font-size: 11px;
+      line-height: 1.6;
+    }
+
+    .legal a {
+      color: var(--muted);
+    }
+
+    #audio-hint {
+      position: fixed;
+      left: 50%;
+      bottom: 18px;
+      transform: translateX(-50%);
+      z-index: 99999;
+      padding: 8px 14px;
+      border-radius: 999px;
+      background: rgba(38, 41, 45, 0.92);
+      border: 1px solid #3a3e44;
+      color: var(--text);
+      font-size: 12px;
+      letter-spacing: 0.2px;
+      pointer-events: none;
+      transition: opacity 0.4s ease;
+    }
+
+    #audio-hint.hidden {
+      opacity: 0;
+    }
+  </style>
+</head>
+<body>
+  <div id="juce-root"></div>
+
+  <div id="loader">
+    <div class="card">
+      <div class="mark">V</div>
+      <h1>Vial</h1>
+      <p class="sub">Spectral warping wavetable synthesizer</p>
+      <div class="bar"><div id="progress"></div></div>
+      <div id="status">Loading…</div>
+      <div class="legal">
+        Open-source build of the Vital synthesizer source by Matt Tytel, licensed under
+        <a href="https://www.gnu.org/licenses/gpl-3.0.html" target="_blank" rel="noopener">GPLv3</a>.
+        Not affiliated with or endorsed by Vital Audio.
+        <a id="source-link" href="https://github.com/mtytel/vital" target="_blank" rel="noopener">Source</a>
+      </div>
+    </div>
+  </div>
+
+  <div id="audio-hint" class="hidden">Click anywhere to start audio</div>
+
+  <script src="vial_shell.js"></script>
+</body>
+</html>

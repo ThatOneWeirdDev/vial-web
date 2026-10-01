@@ -238,11 +238,16 @@
  #include <sys/file.h>
  #include <sys/ioctl.h>
  #include <sys/mman.h>
- #include <sys/prctl.h>
- #include <sys/ptrace.h>
+ #if JUCE_EMSCRIPTEN
+  #include <emscripten.h>
+  #include <emscripten/threading.h>
+ #else
+  #include <sys/prctl.h>
+  #include <sys/ptrace.h>
+  #include <sys/sysinfo.h>
+ #endif
  #include <sys/socket.h>
  #include <sys/stat.h>
- #include <sys/sysinfo.h>
  #include <sys/time.h>
  #include <sys/types.h>
  #include <sys/vfs.h>

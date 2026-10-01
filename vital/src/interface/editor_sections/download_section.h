@@ -110,6 +110,7 @@ class DownloadSection : public Overlay, public URL::DownloadTask::Listener, publ
     void startInstall(Thread* thread);
     void cancelDownload();
     void chooseInstallFolder();
+    void chooseInstallFolder(const File& chosen);
     void addListener(Listener* listener) { listeners_.push_back(listener); }
 
   private:

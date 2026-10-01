@@ -14,6 +14,7 @@
  * along with vital.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "file_dialogs.h"
 #include "popup_browser.h"
 
 #include "skin.h"
@@ -517,9 +518,15 @@ void SelectionList::mouseDoubleClick(const MouseEvent& e) {
 }
 
 void SelectionList::addAdditionalFolder() {
-  FileChooser open_box("Add Folder", File());
-  if (open_box.browseForDirectory()) {
-    File result = open_box.getResult();
+  Component::SafePointer<SelectionList> safe_this(this);
+  file_dialogs::chooseDirectory("Add Folder", File(), [safe_this](const File& result) mutable {
+    if (safe_this != nullptr)
+      safe_this->addAdditionalFolder(result);
+  });
+}
+
+void SelectionList::addAdditionalFolder(const File& result) {
+  {
     if (result.exists()) {
       if (isAcceptableRoot(result)) {
         std::vector<std::string> roots = LoadSave::getAdditionalFolders(additional_roots_name_);

@@ -53,6 +53,10 @@
  #endif
 
 //==============================================================================
+#elif JUCE_EMSCRIPTEN
+ #include <emscripten/html5.h>
+
+//==============================================================================
 #elif JUCE_LINUX
  /* Got an include error here?
 
@@ -90,7 +94,7 @@ namespace juce
 
 void OpenGLExtensionFunctions::initialise()
 {
-   #if JUCE_WINDOWS || JUCE_LINUX
+   #if JUCE_WINDOWS || (JUCE_LINUX && ! JUCE_EMSCRIPTEN)
     #define JUCE_INIT_GL_FUNCTION(name, returnType, params, callparams) \
         name = (type_ ## name) OpenGLHelpers::getExtensionFunction (#name);
 
@@ -275,6 +279,9 @@ private:
 
 #elif JUCE_WINDOWS
  #include "native/juce_OpenGL_win32.h"
+
+#elif JUCE_EMSCRIPTEN
+ #include "native/juce_OpenGL_emscripten.h"
 
 #elif JUCE_LINUX
  #include "native/juce_OpenGL_linux_X11.h"

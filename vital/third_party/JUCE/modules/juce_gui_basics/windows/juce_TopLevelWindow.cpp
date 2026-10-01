@@ -233,8 +233,12 @@ void TopLevelWindow::setDropShadowEnabled (const bool useShadow)
     }
 }
 
-void TopLevelWindow::setUsingNativeTitleBar (const bool shouldUseNativeTitleBar)
+void TopLevelWindow::setUsingNativeTitleBar (bool shouldUseNativeTitleBar)
 {
+   #if JUCE_EMSCRIPTEN
+    shouldUseNativeTitleBar = false;
+   #endif
+
     if (useNativeTitleBar != shouldUseNativeTitleBar)
     {
         FocusRestorer focusRestorer;

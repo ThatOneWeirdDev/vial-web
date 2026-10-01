@@ -26,7 +26,7 @@
 namespace juce
 {
 
-#if JUCE_WINDOWS || JUCE_LINUX || JUCE_MAC || DOXYGEN
+#if JUCE_WINDOWS || (JUCE_LINUX && ! JUCE_EMSCRIPTEN) || JUCE_MAC || DOXYGEN
 
 
 //==============================================================================

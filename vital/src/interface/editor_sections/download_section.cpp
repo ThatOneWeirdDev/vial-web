@@ -14,6 +14,7 @@
  * along with vital.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "file_dialogs.h"
 #include "download_section.h"
 #include "load_save.h"
 #include "update_check_section.h"
@@ -383,9 +384,16 @@ void DownloadSection::cancelDownload() {
 }
 
 void DownloadSection::chooseInstallFolder() {
-  FileChooser open_box("Choose Install Directory", install_location_);
-  if (open_box.browseForDirectory()) {
-    File result = open_box.getResult();
+  Component::SafePointer<DownloadSection> safe_this(this);
+  file_dialogs::chooseDirectory("Choose Install Directory", install_location_, [safe_this](const File& chosen) mutable {
+    if (safe_this != nullptr)
+      safe_this->chooseInstallFolder(chosen);
+  });
+}
+
+void DownloadSection::chooseInstallFolder(const File& chosen) {
+  {
+    File result = chosen;
     if (result.getFileName() != "Vial")
       result = result.getChildFile("Vial");
 

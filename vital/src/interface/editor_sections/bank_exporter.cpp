@@ -14,6 +14,7 @@
  * along with vital.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "file_dialogs.h"
 #include "bank_exporter.h"
 
 #include "skin.h"
@@ -574,7 +575,8 @@ void BankExporter::setButtonColors() {
 }
 
 void BankExporter::exportBank() {
-  ZipFile::Builder bank_zip;
+  std::shared_ptr<ZipFile::Builder> bank_zip_ptr = std::make_shared<ZipFile::Builder>();
+  ZipFile::Builder& bank_zip = *bank_zip_ptr;
   String bank_name = bank_name_box_->getText().trim();
   if (bank_name.isEmpty())
     return;
@@ -616,15 +618,15 @@ void BankExporter::exportBank() {
   }
 
   File file = File::getCurrentWorkingDirectory().getChildFile(bank_name + "." + vital::kBankExtension);
-  FileChooser export_box("Export Bank", file, String("*.") + vital::kBankExtension);
-  if (export_box.browseForFileToSave(true)) {
-    File destination = export_box.getResult().withFileExtension(vital::kBankExtension);
+  file_dialogs::saveFile("Export Bank", file, String("*.") + vital::kBankExtension,
+                         [bank_zip_ptr](const File& chosen) {
+    File destination = chosen.withFileExtension(vital::kBankExtension);
     if (destination.hasWriteAccess()) {
       FileOutputStream output_stream(destination);
       if (output_stream.openedOk())
-        bank_zip.writeToStream(output_stream, nullptr);
+        bank_zip_ptr->writeToStream(output_stream, nullptr);
     }
-  }
+  });
 }
 
 void BankExporter::loadFiles() {

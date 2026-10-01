@@ -91,7 +91,7 @@
  #include <net/if.h>
  #include <sys/ioctl.h>
 
- #if ! JUCE_ANDROID
+ #if ! JUCE_ANDROID && ! JUCE_EMSCRIPTEN
   #include <execinfo.h>
  #endif
 #endif
@@ -206,6 +206,14 @@
  #include "native/juce_win32_Registry.cpp"
  #include "native/juce_win32_SystemStats.cpp"
  #include "native/juce_win32_Threads.cpp"
+
+//==============================================================================
+#elif JUCE_EMSCRIPTEN
+ #include "native/juce_linux_CommonFile.cpp"
+ #include "native/juce_emscripten_Files.cpp"
+ #include "native/juce_emscripten_Network.cpp"
+ #include "native/juce_emscripten_SystemStats.cpp"
+ #include "native/juce_linux_Threads.cpp"
 
 //==============================================================================
 #elif JUCE_LINUX

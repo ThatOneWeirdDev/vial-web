@@ -245,6 +245,22 @@ int JUCEApplicationBase::main (int argc, const char* argv[])
 #endif
 
 //==============================================================================
+#if JUCE_EMSCRIPTEN
+int JUCEApplicationBase::main()
+{
+    new ScopedJuceInitialiser_GUI();
+    jassert (createInstance != nullptr);
+
+    auto* app = createInstance();
+    jassert (app != nullptr);
+
+    if (! app->initialiseApp())
+        return app->shutdownApp();
+
+    MessageManager::getInstance()->runDispatchLoop();
+    return 0;
+}
+#else
 int JUCEApplicationBase::main()
 {
     ScopedJuceInitialiser_GUI libraryInitialiser;
@@ -265,6 +281,7 @@ int JUCEApplicationBase::main()
 
     return app->shutdownApp();
 }
+#endif
 
 #endif
 

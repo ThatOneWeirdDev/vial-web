@@ -106,6 +106,10 @@ void AudioIODeviceType::callDeviceChangeListeners()
  AudioIODeviceType* AudioIODeviceType::createAudioIODeviceType_Bela()         { return nullptr; }
 #endif
 
+#if ! JUCE_EMSCRIPTEN
+ AudioIODeviceType* AudioIODeviceType::createAudioIODeviceType_WebAudio()     { return nullptr; }
+#endif
+
 #if JUCE_ANDROID
  AudioIODeviceType* AudioIODeviceType::createAudioIODeviceType_Android()
  {

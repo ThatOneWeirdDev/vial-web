@@ -90,7 +90,9 @@
 #include "interprocess/juce_ConnectedChildProcess.h"
 #include "interprocess/juce_NetworkServiceDiscovery.h"
 
-#if JUCE_LINUX
+#if JUCE_EMSCRIPTEN
+ #include "native/juce_emscripten_EventLoop.h"
+#elif JUCE_LINUX
  #include "native/juce_linux_EventLoop.h"
 #endif
 

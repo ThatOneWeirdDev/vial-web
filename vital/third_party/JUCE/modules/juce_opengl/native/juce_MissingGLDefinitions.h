@@ -162,7 +162,7 @@ enum MissingOpenGLDefinitions
     WGL_CONTEXT_PROFILE_MASK_ARB    = 0x9126,
    #endif
 
-   #if JUCE_ANDROID
+   #if JUCE_ANDROID || JUCE_EMSCRIPTEN
     JUCE_RGBA_FORMAT                = GL_RGBA
    #else
     JUCE_RGBA_FORMAT                = GL_BGRA_EXT

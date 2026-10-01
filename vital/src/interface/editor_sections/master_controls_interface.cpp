@@ -14,6 +14,7 @@
  * along with vital.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "file_dialogs.h"
 #include "master_controls_interface.h"
 
 #include "oscillator_advanced_section.h"
@@ -128,9 +129,14 @@ void TuningSelector::loadTuning(TuningStyle tuning) {
 
 void TuningSelector::loadTuningFile() {
   setCustomString("Custom");
-  FileChooser load_box("Load Tuning", File(), Tuning::allFileExtensions());
-  if (load_box.browseForFileToOpen())
-    loadTuningFile(load_box.getResult());
+  Component::SafePointer<TuningSelector> safe_this(this);
+  file_dialogs::openFile("Load Tuning", File(), Tuning::allFileExtensions(), [safe_this](const File& file) mutable {
+    if (safe_this == nullptr)
+      return;
+
+    safe_this->loadTuningFile(file);
+    safe_this->setCustomString(safe_this->getTuningName().toStdString());
+  });
 
   setCustomString(getTuningName().toStdString());
 }
@@ -495,15 +501,18 @@ class DisplaySettings : public SynthSection {
           loadSkin(skin);
         }
         else if (skin_->getValue() == skins_.size() + 1) {
-          FileChooser open_box("Open Skin", File(), String("*.") + vital::kSkinExtension);
-          if (open_box.browseForFileToOpen()) {
-            File skin_file = open_box.getResult();
+          Component::SafePointer<Component> safe_this(this);
+          file_dialogs::openFile("Open Skin", File(), String("*.") + vital::kSkinExtension,
+                                 [this, safe_this](const File& skin_file) mutable {
+            if (safe_this == nullptr)
+              return;
+
             skin_file.copyFileTo(LoadSave::getDefaultSkin());
             Skin skin;
 
             skin.loadFromFile(skin_file);
             loadSkin(skin);
-          }
+          });
         }
         else {
           Skin skin;

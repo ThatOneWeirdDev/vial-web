@@ -94,6 +94,78 @@ public:
     }
 
     //==============================================================================
+   #if JUCE_EMSCRIPTEN
+    void start()
+    {
+        if (nativeContext != nullptr && ! frameCallbackRegistered)
+        {
+            frameCallbackRegistered = true;
+            paused = false;
+            destroying = false;
+            EmscriptenEventLoop::addFrameCallback (this, [this] (double) { renderFromMainLoop(); });
+        }
+    }
+
+    void stop()
+    {
+        if (frameCallbackRegistered)
+        {
+            EmscriptenEventLoop::removeFrameCallback (this);
+            frameCallbackRegistered = false;
+        }
+
+        destroying = true;
+        runPendingWork();
+
+        if (hasInitialised && nativeContext != nullptr)
+        {
+            context.makeActive();
+            shutdownOnThread();
+            OpenGLContext::deactivateCurrentContext();
+        }
+
+        hasInitialised = false;
+    }
+
+    void pause()   { paused = true; }
+    void resume()  { paused = false; }
+
+    void runPendingWork()
+    {
+        if (workQueue.size() == 0 || nativeContext == nullptr)
+            return;
+
+        if (! context.makeActive())
+            return;
+
+        for (OpenGLContext::AsyncWorker::Ptr work = workQueue.removeAndReturn (0);
+             work != nullptr; work = workQueue.removeAndReturn (0))
+        {
+            (*work) (context);
+            clearGLError();
+        }
+    }
+
+    void renderFromMainLoop()
+    {
+        if (paused || destroying || nativeContext == nullptr)
+            return;
+
+        if (! hasInitialised)
+        {
+            if (! initialiseOnThread())
+                return;
+
+            hasInitialised = true;
+            needsUpdate = true;
+        }
+
+        runPendingWork();
+
+        if (context.continuousRepaint || needsUpdate)
+            renderFrame();
+    }
+   #else
     void start()
     {
         if (nativeContext != nullptr)
@@ -144,6 +216,7 @@ public:
         if (renderThread != nullptr)
             renderThread->addJob (this, false);
     }
+   #endif
 
     //==============================================================================
     void paint (Graphics&) override
@@ -223,9 +296,11 @@ public:
 
         if (context.renderComponents && isUpdating)
         {
+           #if ! JUCE_EMSCRIPTEN
             // This avoids hogging the message thread when doing intensive rendering.
             if (lastMMLockReleaseTime + 1 >= Time::getMillisecondCounter())
                 Thread::sleep (2);
+           #endif
 
             while (! shouldExit())
             {
@@ -616,6 +691,25 @@ public:
 
     void execute (OpenGLContext::AsyncWorker::Ptr workerToUse, bool shouldBlock, bool calledFromDestructor = false)
     {
+       #if JUCE_EMSCRIPTEN
+        if (calledFromDestructor || ! destroying)
+        {
+            workQueue.add (std::move (workerToUse));
+
+            if (shouldBlock || calledFromDestructor)
+            {
+                if (hasInitialised)
+                    runPendingWork();
+            }
+            else
+            {
+                context.triggerRepaint();
+            }
+        }
+
+        return;
+       #endif
+
         if (calledFromDestructor || ! destroying)
         {
             if (shouldBlock)
@@ -708,6 +802,9 @@ public:
    #endif
 
     std::unique_ptr<ThreadPool> renderThread;
+   #if JUCE_EMSCRIPTEN
+    bool frameCallbackRegistered = false, paused = false;
+   #endif
     ReferenceCountedArray<OpenGLContext::AsyncWorker, CriticalSection> workQueue;
     MessageManager::Lock messageManagerLock;
 

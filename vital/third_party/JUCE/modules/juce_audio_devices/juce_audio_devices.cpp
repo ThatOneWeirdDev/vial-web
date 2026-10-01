@@ -133,6 +133,11 @@
  #endif
 
 //==============================================================================
+#elif JUCE_EMSCRIPTEN
+ #include "native/juce_emscripten_Audio.cpp"
+ #include "native/juce_emscripten_Midi.cpp"
+
+//==============================================================================
 #elif JUCE_LINUX
  #if JUCE_ALSA
   /* Got an include error here? If so, you've either not got ALSA installed, or you've

@@ -35,6 +35,8 @@ void* OpenGLHelpers::getExtensionFunction (const char* functionName)
 {
    #if JUCE_WINDOWS
     return (void*) wglGetProcAddress (functionName);
+   #elif JUCE_EMSCRIPTEN
+    return emscripten_webgl_get_proc_address (functionName);
    #elif JUCE_LINUX
     return (void*) glXGetProcAddress ((const GLubyte*) functionName);
    #else

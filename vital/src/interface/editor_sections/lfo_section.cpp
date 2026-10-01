@@ -14,6 +14,7 @@
  * along with vital.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "file_dialogs.h"
 #include "lfo_section.h"
 
 #include "load_save.h"
@@ -359,21 +360,25 @@ void LfoSection::togglePaintMode(bool enabled, bool temporary_switch) {
 }
 
 void LfoSection::importLfo() {
-  FileChooser import_box("Import LFO", LoadSave::getUserLfoDirectory(), String("*.") + vital::kLfoExtension);
-  if (!import_box.browseForFileToOpen())
-    return;
-
-  File choice = import_box.getResult();
-  loadFile(choice.withFileExtension(vital::kLfoExtension));
+  Component::SafePointer<LfoSection> safe_this(this);
+  file_dialogs::openFile("Import LFO", LoadSave::getUserLfoDirectory(), String("*.") + vital::kLfoExtension,
+                         [safe_this](const File& choice) mutable {
+    if (safe_this != nullptr)
+      safe_this->loadFile(choice.withFileExtension(vital::kLfoExtension));
+  });
 }
 
 void LfoSection::exportLfo() {
-  FileChooser export_box("Export LFO", LoadSave::getUserLfoDirectory(), String("*.") + vital::kLfoExtension);
-  if (!export_box.browseForFileToSave(true))
-    return;
+  Component::SafePointer<LfoSection> safe_this(this);
+  file_dialogs::saveFile("Export LFO", LoadSave::getUserLfoDirectory(), String("*.") + vital::kLfoExtension,
+                         [safe_this](const File& file) mutable {
+    if (safe_this != nullptr)
+      safe_this->exportLfoToFile(file);
+  });
+}
 
-  File choice = export_box.getResult();
-  choice = choice.withFileExtension(vital::kLfoExtension);
+void LfoSection::exportLfoToFile(const File& file) {
+  File choice = file.withFileExtension(vital::kLfoExtension);
   if (!choice.exists())
     choice.create();
   choice.replaceWithText(editor_->getModel()->stateToJson().dump());

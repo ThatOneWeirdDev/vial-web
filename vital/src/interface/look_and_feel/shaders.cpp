@@ -254,7 +254,7 @@ namespace {
       "    " MEDIUMP " vec2 one_pole = stage0 * low_pass + stage1 * high_pass;\n"
       "    " MEDIUMP " vec2 high_pass2 = vec2(1.0, 0.0) - onePoleResponse(getCutoffRatio(position.x, stage3));\n"
       "    " MEDIUMP " vec2 filter_input = vec2(1.0 - 0.5 * abs(resonance), 0.0);\n"
-      "    " MEDIUMP " filter_input = complexMultiply(complexMultiply(filter_input, one_pole), high_pass2);\n"
+      "    filter_input = complexMultiply(complexMultiply(filter_input, one_pole), high_pass2);\n"
       "    " MEDIUMP " vec2 denominator = vec2(1.0, 0.0) - complexMultiply(complexMultiply(tick, one_pole), high_pass2);\n"
       "    " MEDIUMP " float round_value = complexMultiply(one_pole, high_pass2).x * abs(resonance);\n"
       "    " MEDIUMP " vec2 denominator_round = vec2(1.0 - round_value, 0.0);\n"
@@ -950,7 +950,7 @@ namespace {
 
   inline String translateFragmentShader(const String& code) {
   #if OPENGL_ES
-    return String("#version 300 es\n") + "out mediump vec4 fragColor;\n" +
+    return String("#version 300 es\nprecision highp float;\nprecision highp int;\n") + "out mediump vec4 fragColor;\n" +
       code.replace("varying", "in").replace("texture2D", "texture").replace("gl_FragColor", "fragColor");
   #else
     return OpenGLHelpers::translateFragmentShaderToV3(code);
@@ -959,7 +959,7 @@ namespace {
 
   inline String translateVertexShader(const String& code) {
   #if OPENGL_ES
-    return String("#version 300 es\n") + code.replace("attribute", "in").replace("varying", "out");
+    return String("#version 300 es\nprecision highp float;\nprecision highp int;\n") + code.replace("attribute", "in").replace("varying", "out");
   #else
     return OpenGLHelpers::translateVertexShaderToV3(code);
   #endif

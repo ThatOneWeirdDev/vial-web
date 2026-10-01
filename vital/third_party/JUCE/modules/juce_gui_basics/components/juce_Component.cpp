@@ -387,7 +387,7 @@ struct Component::ComponentHelpers
     template <typename PointOrRect>
     static PointOrRect convertCoordinate (const Component* target, const Component* source, PointOrRect p)
     {
-        float total_scaling = source->getTotalPixelScaling();
+        float total_scaling = source != nullptr ? source->getTotalPixelScaling() : 1.0f;
         Component* top = nullptr;
         if (source)
             top = source->getTopLevelComponent();

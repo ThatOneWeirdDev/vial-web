@@ -97,6 +97,7 @@ class SynthPresetSelector : public SynthSection,
     void importPreset();
     void exportPreset();
     void importBank();
+    void importBankFile(const File& file);
     void exportBank();
     void loadTuningFile();
     void clearTuning();

@@ -85,6 +85,27 @@ void OpenGLTexture::create (const int w, const int h, const void* pixels, GLenum
 
     const GLint internalformat = type == GL_ALPHA ? GL_ALPHA : GL_RGBA;
 
+   #if JUCE_EMSCRIPTEN
+    HeapBlock<uint8> swizzled;
+
+    if (type == GL_RGBA && pixels != nullptr)
+    {
+        auto numBytes = (size_t) w * (size_t) h * 4;
+        swizzled.malloc (numBytes);
+        auto* src = static_cast<const uint8*> (pixels);
+
+        for (size_t i = 0; i < numBytes; i += 4)
+        {
+            swizzled[i]     = src[i + 2];
+            swizzled[i + 1] = src[i + 1];
+            swizzled[i + 2] = src[i];
+            swizzled[i + 3] = src[i + 3];
+        }
+
+        pixels = swizzled.getData();
+    }
+   #endif
+
     if (width != w || height != h)
     {
         glTexImage2D (GL_TEXTURE_2D, 0, internalformat,

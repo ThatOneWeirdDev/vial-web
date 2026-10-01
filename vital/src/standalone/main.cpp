@@ -16,6 +16,7 @@
 
 #include "JuceHeader.h"
 #include "border_bounds_constrainer.h"
+#include "file_dialogs.h"
 #include "full_interface.h"
 #include "load_save.h"
 #include "startup.h"
@@ -80,6 +81,49 @@ FileSource::FadeStyle getFadeStyleFromWavetableString(String data) {
   return FileSource::kFreqInterpolate;
 }
 
+#if JUCE_EMSCRIPTEN
+class WebEditorContainer : public Component {
+  public:
+    WebEditorContainer(Component* editor) : editor_(editor) {
+      setOpaque(true);
+      addAndMakeVisible(editor_);
+    }
+
+    void paint(Graphics& g) override {
+      g.fillAll(Colour(0xff1d2125));
+    }
+
+    void resized() override {
+      if (editor_ == nullptr || getWidth() <= 0 || getHeight() <= 0)
+        return;
+
+      float ratio = (1.0f * vital::kDefaultWindowWidth) / vital::kDefaultWindowHeight;
+      int width = getWidth();
+      int height = std::round(width / ratio);
+      if (height > getHeight()) {
+        height = getHeight();
+        width = std::round(height * ratio);
+      }
+
+      width = std::max(width, 1);
+      height = std::max(height, 1);
+      editor_->setBounds((getWidth() - width) / 2, (getHeight() - height) / 2, width, height);
+    }
+
+    void childBoundsChanged(Component* child) override {
+      if (child == editor_ && !refitting_) {
+        refitting_ = true;
+        resized();
+        refitting_ = false;
+      }
+    }
+
+  private:
+    Component* editor_;
+    bool refitting_ = false;
+};
+#endif
+
 class SynthApplication : public JUCEApplication {
   public:
     class MainWindow : public DocumentWindow, public ApplicationCommandTarget, private AsyncUpdater {
@@ -109,6 +153,21 @@ class SynthApplication : public JUCEApplication {
 
           editor_ = new SynthEditor(visible);
           constrainer_.setGui(editor_->getGui());
+        #if JUCE_EMSCRIPTEN
+          if (visible) {
+            editor_->animate(true);
+            setUsingNativeTitleBar(false);
+            setTitleBarHeight(0);
+            setResizable(false, false);
+            container_ = std::make_unique<WebEditorContainer>(editor_);
+            setContentNonOwned(container_.get(), false);
+            fitToBrowser();
+            setVisible(true);
+            triggerAsyncUpdate();
+          }
+          else
+            editor_->animate(false);
+        #else
           if (visible) {
             editor_->animate(true);
             setContentOwned(editor_, true);
@@ -126,7 +185,26 @@ class SynthApplication : public JUCEApplication {
           }
           else
             editor_->animate(false);
+        #endif
         }
+
+      #if JUCE_EMSCRIPTEN
+        ~MainWindow() {
+          clearContentComponent();
+          container_ = nullptr;
+          delete editor_;
+        }
+
+        void fitToBrowser() {
+          const Displays::Display* display = Desktop::getInstance().getDisplays().getPrimaryDisplay();
+          if (display)
+            setBounds(display->userArea);
+        }
+
+        void parentSizeChanged() override {
+          fitToBrowser();
+        }
+      #endif
 
         void closeButtonPressed() override {
           JUCEApplication::getInstance()->systemRequestedQuit();
@@ -184,32 +262,35 @@ class SynthApplication : public JUCEApplication {
           }
           else if (info.commandID == kSaveAs) {
             File active_file = editor_->getActiveFile();
-            FileChooser save_box("Export Preset", File(), String("*.") + vital::kPresetExtension);
-            if (save_box.browseForFileToSave(true))
-              editor_->saveToFile(save_box.getResult().withFileExtension(vital::kPresetExtension));
-            grabKeyboardFocus();
-            editor_->setFocus();
+            Component::SafePointer<MainWindow> safe_this(this);
+            file_dialogs::saveFile("Export Preset", active_file, String("*.") + vital::kPresetExtension,
+                                   [safe_this](const File& file) mutable {
+              if (safe_this == nullptr)
+                return;
+              safe_this->editor_->saveToFile(file.withFileExtension(vital::kPresetExtension));
+              safe_this->grabKeyboardFocus();
+              safe_this->editor_->setFocus();
+            });
             return true;
           }
           else if (info.commandID == kOpen) {
             File active_file = editor_->getActiveFile();
-            FileChooser open_box("Open Preset", active_file, String("*.") + vital::kPresetExtension);
-            if (!open_box.browseForFileToOpen())
-              return true;
-            
-            File choice = open_box.getResult();
-            if (!choice.exists())
-              return true;
+            Component::SafePointer<MainWindow> safe_this(this);
+            file_dialogs::openFile("Open Preset", active_file, String("*.") + vital::kPresetExtension,
+                                   [safe_this](const File& choice) mutable {
+              if (safe_this == nullptr || !choice.exists())
+                return;
 
-            std::string error;
-            if (!editor_->loadFromFile(choice, error)) {
-              error = "There was an error open the preset. " + error;
-              AlertWindow::showNativeDialogBox("Error opening preset", error, false);
-            }
-            else
-              editor_->externalPresetLoaded(choice);
-            grabKeyboardFocus();
-            editor_->setFocus();
+              std::string error;
+              if (!safe_this->editor_->loadFromFile(choice, error)) {
+                error = "There was an error open the preset. " + error;
+                AlertWindow::showNativeDialogBox("Error opening preset", error, false);
+              }
+              else
+                safe_this->editor_->externalPresetLoaded(choice);
+              safe_this->grabKeyboardFocus();
+              safe_this->editor_->setFocus();
+            });
             return true;
           }
           else if (info.commandID == kToggleVideo)
@@ -244,6 +325,9 @@ class SynthApplication : public JUCEApplication {
       
         File file_to_load_;
         SynthEditor* editor_;
+      #if JUCE_EMSCRIPTEN
+        std::unique_ptr<WebEditorContainer> container_;
+      #endif
         std::unique_ptr<ApplicationCommandManager> command_manager_;
         BorderBoundsConstrainer constrainer_;
       

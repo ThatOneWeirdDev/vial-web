@@ -14,6 +14,7 @@
  * along with vital.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "file_dialogs.h"
 #include "modulation_matrix.h"
 
 #include "bar_renderer.h"
@@ -1190,21 +1191,25 @@ void ModulationMatrix::togglePaintMode(bool enabled, bool temporary_switch) {
 }
 
 void ModulationMatrix::importLfo() {
-  FileChooser import_box("Import LFO", LoadSave::getUserLfoDirectory(), String("*.") + vital::kLfoExtension);
-  if (!import_box.browseForFileToOpen())
-    return;
-
-  File choice = import_box.getResult();
-  loadFile(choice.withFileExtension(vital::kLfoExtension));
+  Component::SafePointer<ModulationMatrix> safe_this(this);
+  file_dialogs::openFile("Import LFO", LoadSave::getUserLfoDirectory(), String("*.") + vital::kLfoExtension,
+                         [safe_this](const File& choice) mutable {
+    if (safe_this != nullptr)
+      safe_this->loadFile(choice.withFileExtension(vital::kLfoExtension));
+  });
 }
 
 void ModulationMatrix::exportLfo() {
-  FileChooser export_box("Export LFO", LoadSave::getUserLfoDirectory(), String("*.") + vital::kLfoExtension);
-  if (!export_box.browseForFileToSave(true))
-    return;
+  Component::SafePointer<ModulationMatrix> safe_this(this);
+  file_dialogs::saveFile("Export LFO", LoadSave::getUserLfoDirectory(), String("*.") + vital::kLfoExtension,
+                         [safe_this](const File& file) mutable {
+    if (safe_this != nullptr)
+      safe_this->exportLfoToFile(file);
+  });
+}
 
-  File choice = export_box.getResult();
-  choice = choice.withFileExtension(vital::kLfoExtension);
+void ModulationMatrix::exportLfoToFile(const File& file) {
+  File choice = file.withFileExtension(vital::kLfoExtension);
   if (!choice.exists())
     choice.create();
   choice.replaceWithText(map_editors_[selected_index_]->getModel()->stateToJson().dump());

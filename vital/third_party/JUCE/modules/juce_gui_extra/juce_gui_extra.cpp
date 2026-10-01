@@ -114,7 +114,7 @@
  #endif
 
 //==============================================================================
-#elif JUCE_LINUX && JUCE_WEB_BROWSER
+#elif JUCE_LINUX && JUCE_WEB_BROWSER && ! JUCE_EMSCRIPTEN
  JUCE_BEGIN_IGNORE_WARNINGS_GCC_LIKE ("-Wzero-as-null-pointer-constant", "-Wparentheses")
 
  // If you're missing this header, you need to install the webkit2gtk-4.0 package
@@ -177,7 +177,7 @@
  #include "native/juce_win32_SystemTrayIcon.cpp"
 
 //==============================================================================
-#elif JUCE_LINUX
+#elif JUCE_LINUX && ! JUCE_EMSCRIPTEN
  JUCE_BEGIN_IGNORE_WARNINGS_GCC_LIKE ("-Wzero-as-null-pointer-constant")
 
  #include "native/juce_linux_XEmbedComponent.cpp"

@@ -14,6 +14,7 @@
  * along with vital.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "file_dialogs.h"
 #include "wavetable_edit_section.h"
 
 #include "skin.h"
@@ -575,32 +576,39 @@ void WavetableEditSection::saveAsWavetable() {
 }
 
 void WavetableEditSection::importWavetable() {
-  FileChooser open_box("Import Wavetable", File(), vital::kWavetableExtensionsList);
-  if (open_box.browseForFileToOpen()) {
-    if (!open_box.getResult().exists())
+  Component::SafePointer<WavetableEditSection> safe_this(this);
+  file_dialogs::openFile("Import Wavetable", File(), vital::kWavetableExtensionsList, [safe_this](const File& file) mutable {
+    if (safe_this == nullptr || !file.exists())
       return;
-    loadFile(open_box.getResult());
-  }
+    safe_this->loadFile(file);
+  });
 }
 
 void WavetableEditSection::exportWavetable() {
-  FileChooser save_box("Export Wavetable", File(), String("*.") + vital::kWavetableExtension);
-  if (save_box.browseForFileToSave(true)) {
-    json wavetable_data = wavetable_creator_->stateToJson();
-    File file = save_box.getResult().withFileExtension(vital::kWavetableExtension);
+  Component::SafePointer<WavetableEditSection> safe_this(this);
+  file_dialogs::saveFile("Export Wavetable", File(), String("*.") + vital::kWavetableExtension,
+                         [safe_this](const File& chosen) mutable {
+    if (safe_this == nullptr)
+      return;
+    json wavetable_data = safe_this->wavetable_creator_->stateToJson();
+    File file = chosen.withFileExtension(vital::kWavetableExtension);
     file.replaceWithText(wavetable_data.dump());
-  }
+  });
 }
 
 void WavetableEditSection::exportToWav() {
+  Component::SafePointer<WavetableEditSection> safe_this(this);
+  file_dialogs::saveFile("Export to .wav File", File(), String("*.wav"), [safe_this](const File& chosen) mutable {
+    if (safe_this != nullptr)
+      safe_this->exportToWavFile(chosen);
+  });
+}
+
+void WavetableEditSection::exportToWavFile(const File& chosen) {
   static constexpr int kWavetableSampleRate = 88200;
   static constexpr int kNumWaveframes = 256;
-  
-  FileChooser save_box("Export to .wav File", File(), String("*.wav"));
-  if (!save_box.browseForFileToSave(true))
-    return;
 
-  File file = save_box.getResult().withFileExtension("wav");
+  File file = chosen.withFileExtension("wav");
   if (!file.hasWriteAccess())
     return;
 

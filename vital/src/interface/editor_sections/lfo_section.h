@@ -92,6 +92,7 @@ class LfoSection : public SynthSection, public PresetSelector::Listener, public 
     void togglePaintMode(bool enabled, bool temporary_switch) override;
     void importLfo() override;
     void exportLfo() override;
+    void exportLfoToFile(const File& file);
     void fileLoaded() override;
 
     void loadFile(const File& file) override;

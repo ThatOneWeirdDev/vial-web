@@ -255,6 +255,10 @@ namespace juce
  #include "native/juce_win32_DragAndDrop.cpp"
  #include "native/juce_win32_FileChooser.cpp"
 
+#elif JUCE_EMSCRIPTEN
+ #include "native/juce_emscripten_Windowing.cpp"
+ #include "native/juce_emscripten_FileChooser.cpp"
+
 #elif JUCE_LINUX
  #include "native/x11/juce_linux_X11_Symbols.cpp"
  #include "native/x11/juce_linux_X11_DragAndDrop.cpp"
