@@ -18,6 +18,7 @@
 
 #include "paths.h"
 #include "file_dialogs.h"
+#include "web_platform.h"
 #include "skin.h"
 #include "default_look_and_feel.h"
 #include "fonts.h"
@@ -59,6 +60,12 @@ namespace {
       preset_selector->signOut();
     else if (result == SynthPresetSelector::kLogIn)
       preset_selector->signIn();
+    else if (result == SynthPresetSelector::kWebImportFiles)
+      preset_selector->importFiles();
+    else if (result == SynthPresetSelector::kWebFullscreen)
+      preset_selector->toggleFullscreen();
+    else if (result == SynthPresetSelector::kWebEnableMidi)
+      web_platform::enableMidi();
   }
 
   String redactEmail(const String& email) {
@@ -200,6 +207,9 @@ void SynthPresetSelector::showPopupMenu(Component* anchor) {
   options.addItem(kExportPreset, "Export Preset");
   options.addItem(kImportBank, "Import Bank");
   options.addItem(kExportBank, "Export Bank");
+#if JUCE_EMSCRIPTEN
+  options.addItem(kWebImportFiles, "Import Files...");
+#endif
   options.addItem(-1, "");
   options.addItem(kInitPreset, "Initialize Preset");
   options.addItem(-1, "");
@@ -220,6 +230,16 @@ void SynthPresetSelector::showPopupMenu(Component* anchor) {
     options.addItem(-1, "");
     options.addItem(kClearSkin, "Load Default Skin");
   }
+
+#if JUCE_EMSCRIPTEN
+  options.addItem(-1, "");
+  if (web_platform::midiAvailable() && !web_platform::midiEnabled())
+    options.addItem(kWebEnableMidi, "Enable MIDI Input");
+  if (web_platform::isFullscreen())
+    options.addItem(kWebFullscreen, "Exit Full Screen");
+  else
+    options.addItem(kWebFullscreen, "Full Screen");
+#endif
 
   showPopupSelector(this, Point<int>(anchor->getX(), anchor->getBottom()), options,
                     [=](int selection) { menuCallback(selection, this); });
@@ -362,6 +382,50 @@ void SynthPresetSelector::importBankFile(const File& result) {
     else
       LoadSave::writeErrorLog("Opening file stream to bank failed!");
   }
+}
+
+void SynthPresetSelector::importFiles() {
+  Component::SafePointer<SynthPresetSelector> safe_this(this);
+  String filters = String("*.") + vital::kPresetExtension + ";*." + vital::kWavetableExtension + ";*." +
+                   vital::kLfoExtension + ";*." + vital::kBankExtension + ";*." + vital::kSkinExtension +
+                   ";*.wav;*.flac;*.scl;*.tun;*.kbm;*.zip";
+  file_dialogs::openFiles("Import Files", File(), filters, [safe_this](const Array<File>& files) mutable {
+    if (safe_this == nullptr)
+      return;
+
+    web_platform::ImportSummary summary = web_platform::importFiles(files);
+    SynthGuiInterface* parent = safe_this->findParentComponentOfClass<SynthGuiInterface>();
+
+    if (parent && summary.last_tuning.existsAsFile())
+      parent->getSynth()->loadTuningFile(summary.last_tuning);
+
+    if (summary.banks > 0) {
+      for (Listener* listener : safe_this->listeners_)
+        listener->bankImported();
+    }
+
+    FullInterface* full_interface = safe_this->findParentComponentOfClass<FullInterface>();
+    if (full_interface)
+      full_interface->dataDirectoryChanged();
+
+    if (parent && summary.presets == 1 && summary.last_preset.existsAsFile()) {
+      std::string error;
+      if (parent->getSynth()->loadFromFile(summary.last_preset, error))
+        parent->externalPresetLoaded(summary.last_preset);
+    }
+
+    if (!(summary.presets == 1 && summary.wavetables + summary.lfos + summary.skins + summary.banks +
+          summary.tunings + summary.skipped == 0)) {
+      NativeMessageBox::showMessageBoxAsync(AlertWindow::InfoIcon, "Import", web_platform::describe(summary));
+    }
+  });
+}
+
+void SynthPresetSelector::toggleFullscreen() {
+  if (web_platform::fullscreenSupported() || web_platform::isFullscreen())
+    web_platform::toggleFullscreen();
+  else
+    web_platform::showFullscreenHelp();
 }
 
 void SynthPresetSelector::exportBank() {

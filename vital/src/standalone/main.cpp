@@ -23,6 +23,10 @@
 #include "synth_editor.h"
 #include "tuning.h"
 
+#if JUCE_EMSCRIPTEN
+#include "web_factory_content.h"
+#endif
+
 #if JUCE_MODULE_AVAILABLE_juce_graphics
 #include "wavetable_edit_section.h"
 #include "wavetable_3d.h"
@@ -347,6 +351,7 @@ class SynthApplication : public JUCEApplication {
     void initialise(const String& command_line) override {
     #if JUCE_EMSCRIPTEN
       installBrowserFonts();
+      web_factory::install();
     #endif
       String command = " " + command_line + " ";
       if (command.contains(" --version ") || command.contains(" -v ")) {

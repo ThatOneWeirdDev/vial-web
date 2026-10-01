@@ -129,6 +129,8 @@
   }
 
   function setupAudioHint() {
+    if (window.matchMedia && window.matchMedia("(pointer: coarse)").matches)
+      audioHint.textContent = "Tap anywhere to start audio";
     audioHint.classList.remove("hidden");
     var dismiss = function () {
       audioHint.classList.add("hidden");

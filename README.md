@@ -11,6 +11,8 @@ This is a straight port of the GPLv3 source at [mtytel/vital](https://github.com
 - Click anywhere once to start audio (browsers block sound until you interact with the page).
 - Play notes with your computer keyboard (`A W S E D F T G Y H U J K O L P ; '`, `Z`/`X` change octave) or with any Web MIDI controller (Chrome, Edge, Firefox; Safari has no Web MIDI).
 - Presets, wavetables, LFO shapes, skins and settings you save are kept in your browser's storage and are still there next time.
+- A "Vial Basics" pack of wavetables (sine, triangle, saw, square, pulses, PWM, sync, FM, wavefold, additive, formant sweeps…) and LFO shapes is installed on first launch.
+- Main menu (☰) → **Import Files...** adds any mix of presets, wavetables, LFOs, skins, banks and tunings to your library in one go. **Full Screen** is in the same menu; on iPhone, use Share → Add to Home Screen instead.
 - "Export" and "Save as" give you a file download (or a native save dialog in Chromium browsers). "Import"/"Open" use your browser's file picker, and you can drag files straight onto the synth.
 - Audio sample rate and buffer size are in the About panel (click the logo), exactly like the desktop standalone.
 

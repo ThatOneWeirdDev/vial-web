@@ -211,7 +211,6 @@ EM_JS (void, juce_web_setup, (), {
             W.capturePeer = id;
             W.buttons |= W.translateButton (e);
             W.updatePosition (e);
-            if (window.focus) window.focus();
             Module._juce_web_activate (id);
             W.sendPointer (id, 1, e);
             if (W.onUserGesture) W.onUserGesture();
@@ -1234,13 +1233,12 @@ extern "C" EMSCRIPTEN_KEEPALIVE void juce_web_window_focus (int hasFocus)
         {
             if (hadKeys)
                 peer->handleKeyUpOrDown (false);
-
-            peer->handleFocusLoss();
         }
     }
     else if (auto* peer = WebPeers::find (WebPeers::focusedPeerId))
     {
-        peer->handleFocusGain();
+        if (Component::getCurrentlyFocusedComponent() == nullptr)
+            peer->handleFocusGain();
     }
 }
 

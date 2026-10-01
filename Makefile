@@ -1,8 +1,8 @@
 EMXX ?= em++
 VITAL := vital
 OUT ?= docs
-OBJDIR := build/obj-$(CONFIG)
 CONFIG ?= Release
+OBJDIR := build/obj-$(CONFIG)
 
 JUCE_CODE := $(VITAL)/standalone/JuceLibraryCode
 JUCE_MODULES := $(VITAL)/third_party/JUCE/modules
@@ -82,7 +82,7 @@ $(OUT)/vial.js: $(OBJECTS)
 	$(EMXX) $(OBJECTS) $(LDFLAGS) -o $@
 
 site: $(OUT)/vial.js
-	cp web/index.html web/coi-serviceworker.js web/vial_shell.js web/icon.png $(OUT)/
+	cp web/index.html web/coi-serviceworker.js web/vial_shell.js web/icon.png web/icon-180.png web/icon-192.png web/icon-512.png web/manifest.webmanifest $(OUT)/
 	touch $(OUT)/.nojekyll
 
 clean:

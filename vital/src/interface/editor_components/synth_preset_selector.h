@@ -52,6 +52,9 @@ class SynthPresetSelector : public SynthSection,
       kClearSkin,
       kLogOut,
       kLogIn,
+      kWebImportFiles,
+      kWebFullscreen,
+      kWebEnableMidi,
       kNumMenuItems
     };
 
@@ -98,6 +101,8 @@ class SynthPresetSelector : public SynthSection,
     void exportPreset();
     void importBank();
     void importBankFile(const File& file);
+    void importFiles();
+    void toggleFullscreen();
     void exportBank();
     void loadTuningFile();
     void clearTuning();

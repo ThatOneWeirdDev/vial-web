@@ -7,7 +7,9 @@ EM_JS (void, juce_web_openFileChooser, (int handle, const char* accept, int mult
     var input = document.createElement ("input");
     input.type = "file";
     var acceptString = UTF8ToString (accept);
-    if (acceptString.length > 0 && ! directory)
+    var appleMobile = /iPad|iPhone|iPod/.test (navigator.userAgent) ||
+                      (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+    if (acceptString.length > 0 && ! directory && ! appleMobile)
         input.accept = acceptString;
     if (multiple)
         input.multiple = true;
@@ -17,16 +19,25 @@ EM_JS (void, juce_web_openFileChooser, (int handle, const char* accept, int mult
         input.setAttribute ("webkitdirectory", "");
         input.setAttribute ("directory", "");
     }
-    input.style.display = "none";
+    input.style.position = "fixed";
+    input.style.left = "-10000px";
+    input.style.top = "0px";
+    input.style.width = "1px";
+    input.style.height = "1px";
+    input.style.opacity = "0";
+    input.tabIndex = -1;
     document.body.appendChild (input);
 
     var finished = false;
+    var prompt = null;
     var finish = function (paths) {
         if (finished)
             return;
         finished = true;
         if (input.parentNode)
             input.parentNode.removeChild (input);
+        if (prompt && prompt.parentNode)
+            prompt.parentNode.removeChild (prompt);
         var joined = paths.join (String.fromCharCode (10));
         var n = lengthBytesUTF8 (joined) + 1;
         var p = _malloc (n);
@@ -60,16 +71,40 @@ EM_JS (void, juce_web_openFileChooser, (int handle, const char* accept, int mult
 
     input.addEventListener ("cancel", function() { finish ([]); });
 
-    var onFocus = function() {
-        window.removeEventListener ("focus", onFocus);
-        setTimeout (function() {
-            if (! finished && (! input.files || input.files.length == 0))
-                finish ([]);
-        }, 1500);
-    };
-    window.addEventListener ("focus", onFocus);
+    var hasActivation = ! navigator.userActivation || navigator.userActivation.isActive;
 
-    input.click();
+    if (hasActivation)
+    {
+        input.click();
+        return;
+    }
+
+    prompt = document.createElement ("div");
+    prompt.style.cssText = "position:fixed;inset:0;z-index:2147483000;display:flex;align-items:center;" +
+                           "justify-content:center;background:rgba(0,0,0,0.55);font-family:system-ui,sans-serif;";
+    var box = document.createElement ("div");
+    box.style.cssText = "background:#26292d;border:1px solid #3a3e44;border-radius:10px;padding:18px;" +
+                        "display:flex;gap:10px;";
+    var choose = document.createElement ("button");
+    choose.textContent = directory ? "Choose folder" : (multiple ? "Choose files" : "Choose file");
+    choose.style.cssText = "background:#aa88ff;color:#1d2125;border:0;border-radius:6px;padding:10px 18px;font-size:15px;";
+    var cancel = document.createElement ("button");
+    cancel.textContent = "Cancel";
+    cancel.style.cssText = "background:#4a4e54;color:#e6e7e9;border:0;border-radius:6px;padding:10px 18px;font-size:15px;";
+    choose.addEventListener ("click", function (e) {
+        e.stopPropagation();
+        if (prompt && prompt.parentNode)
+            prompt.parentNode.removeChild (prompt);
+        input.click();
+    });
+    cancel.addEventListener ("click", function (e) { e.stopPropagation(); finish ([]); });
+    ["pointerdown", "pointerup", "keydown"].forEach (function (type) {
+        prompt.addEventListener (type, function (e) { e.stopPropagation(); });
+    });
+    box.appendChild (choose);
+    box.appendChild (cancel);
+    prompt.appendChild (box);
+    document.body.appendChild (prompt);
 });
 
 EM_JS (void, juce_web_saveFileChooser, (int handle, const char* suggested, const char* accept, const char* dir), {

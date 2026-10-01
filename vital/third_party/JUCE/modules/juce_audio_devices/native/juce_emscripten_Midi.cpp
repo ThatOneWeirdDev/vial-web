@@ -48,9 +48,9 @@ EM_JS (void, juce_webmidi_init, (), {
         if (M.requested || ! navigator.requestMIDIAccess)
             return;
         M.requested = true;
-        ["pointerdown", "keydown"].forEach (function (type) { window.removeEventListener (type, request, true); });
         navigator.requestMIDIAccess ({ sysex: false }).then (function (access) {
             M.access = access;
+            try { localStorage.setItem ("vial-midi-enabled", "1"); } catch (err) {}
             access.onstatechange = function() { M.refresh(); };
             M.refresh();
         }).catch (function (err) {
@@ -58,17 +58,21 @@ EM_JS (void, juce_webmidi_init, (), {
         });
     };
 
-    var alreadyGranted = function (state) {
-        if (state === "granted")
-            request();
-    };
+    M.request = request;
 
-    try {
-        if (navigator.permissions && navigator.permissions.query)
-            navigator.permissions.query ({ name: "midi", sysex: false }).then (function (s) { alreadyGranted (s.state); }).catch (function() {});
-    } catch (err) {}
+    var wasEnabled = false;
+    try { wasEnabled = localStorage.getItem ("vial-midi-enabled") === "1"; } catch (err) {}
 
-    ["pointerdown", "keydown"].forEach (function (type) { window.addEventListener (type, request, true); });
+    if (wasEnabled)
+    {
+        try {
+            if (navigator.permissions && navigator.permissions.query)
+                navigator.permissions.query ({ name: "midi", sysex: false }).then (function (s) {
+                    if (s.state === "granted")
+                        request();
+                }).catch (function() {});
+        } catch (err) {}
+    }
 });
 
 EM_JS (char*, juce_webmidi_list, (int outputs), {
