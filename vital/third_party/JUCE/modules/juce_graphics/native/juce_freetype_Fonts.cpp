@@ -267,7 +267,11 @@ private:
 
     static bool isFaceSansSerif (const String& family)
     {
+       #if JUCE_EMSCRIPTEN
+        static const char* sansNames[] = { "Sans", "Verdana", "Arial", "Ubuntu", "Lato" };
+       #else
         static const char* sansNames[] = { "Sans", "Verdana", "Arial", "Ubuntu" };
+       #endif
 
         for (auto* name : sansNames)
             if (family.containsIgnoreCase (name))

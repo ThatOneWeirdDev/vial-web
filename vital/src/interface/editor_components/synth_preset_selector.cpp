@@ -207,12 +207,14 @@ void SynthPresetSelector::showPopupMenu(Component* anchor) {
   if (!hasDefaultTuning())
     options.addItem(kClearTuning, "Clear Tuning: " + getTuningName());
   
+#if !NO_AUTH
   options.addItem(-1, "");
   std::string logged_in_as = loggedInName();
   if (logged_in_as.empty())
     options.addItem(kLogIn, "Log in");
   else
     options.addItem(kLogOut, "Log out - " + redactEmail(logged_in_as).toStdString());
+#endif
 
   if (LoadSave::getDefaultSkin().exists()) {
     options.addItem(-1, "");

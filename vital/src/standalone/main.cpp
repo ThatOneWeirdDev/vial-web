@@ -204,6 +204,10 @@ class SynthApplication : public JUCEApplication {
         void parentSizeChanged() override {
           fitToBrowser();
         }
+
+        BorderSize<int> getBorderThickness() override {
+          return {};
+        }
       #endif
 
         void closeButtonPressed() override {
@@ -341,6 +345,9 @@ class SynthApplication : public JUCEApplication {
     bool moreThanOneInstanceAllowed() override { return true; }
 
     void initialise(const String& command_line) override {
+    #if JUCE_EMSCRIPTEN
+      installBrowserFonts();
+    #endif
       String command = " " + command_line + " ";
       if (command.contains(" --version ") || command.contains(" -v ")) {
         std::cout << getApplicationName() << " " << getApplicationVersion() << newLine;
@@ -591,6 +598,18 @@ class SynthApplication : public JUCEApplication {
         }
       }
     }
+
+  #if JUCE_EMSCRIPTEN
+    static void installBrowserFonts() {
+      File font_folder("/usr/share/fonts");
+      font_folder.createDirectory();
+      font_folder.getChildFile("Lato-Regular.ttf").replaceWithData(BinaryData::LatoRegular_ttf,
+                                                                    BinaryData::LatoRegular_ttfSize);
+      font_folder.getChildFile("DroidSansMono.ttf").replaceWithData(BinaryData::DroidSansMono_ttf,
+                                                                     BinaryData::DroidSansMono_ttfSize);
+      Typeface::scanFolderForFonts(font_folder);
+    }
+  #endif
 
     bool loadFromCommandLine(const String& command_line) {
       String file_path = command_line;

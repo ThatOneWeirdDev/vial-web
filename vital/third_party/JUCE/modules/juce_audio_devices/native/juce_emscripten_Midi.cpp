@@ -44,9 +44,11 @@ EM_JS (void, juce_webmidi_init, (), {
         };
     };
 
-    if (navigator.requestMIDIAccess)
-    {
+    var request = function() {
+        if (M.requested || ! navigator.requestMIDIAccess)
+            return;
         M.requested = true;
+        ["pointerdown", "keydown"].forEach (function (type) { window.removeEventListener (type, request, true); });
         navigator.requestMIDIAccess ({ sysex: false }).then (function (access) {
             M.access = access;
             access.onstatechange = function() { M.refresh(); };
@@ -54,7 +56,19 @@ EM_JS (void, juce_webmidi_init, (), {
         }).catch (function (err) {
             console.warn ("Web MIDI unavailable", err);
         });
-    }
+    };
+
+    var alreadyGranted = function (state) {
+        if (state === "granted")
+            request();
+    };
+
+    try {
+        if (navigator.permissions && navigator.permissions.query)
+            navigator.permissions.query ({ name: "midi", sysex: false }).then (function (s) { alreadyGranted (s.state); }).catch (function() {});
+    } catch (err) {}
+
+    ["pointerdown", "keydown"].forEach (function (type) { window.addEventListener (type, request, true); });
 });
 
 EM_JS (char*, juce_webmidi_list, (int outputs), {

@@ -71,6 +71,11 @@ StringArray FTTypefaceList::getDefaultFontDirectories()
         }
     }
 
+   #if JUCE_EMSCRIPTEN
+    if (fontDirs.isEmpty())
+        fontDirs.add ("/usr/share/fonts");
+   #endif
+
     if (fontDirs.isEmpty())
         fontDirs.add ("/usr/X11R6/lib/X11/fonts");
 
@@ -156,8 +161,13 @@ private:
         StringArray allFonts;
         FTTypefaceList::getInstance()->getSansSerifNames (allFonts);
 
+       #if JUCE_EMSCRIPTEN
+        static const char* targets[] = { "Lato", "Verdana", "Bitstream Vera Sans", "Luxi Sans",
+                                         "Liberation Sans", "DejaVu Sans", nullptr };
+       #else
         static const char* targets[] = { "Verdana", "Bitstream Vera Sans", "Luxi Sans",
                                          "Liberation Sans", "DejaVu Sans", "Sans", nullptr };
+       #endif
         return pickBestFont (allFonts, targets);
     }
 
@@ -168,6 +178,10 @@ private:
 
         static const char* targets[] = { "Bitstream Vera Serif", "Times", "Nimbus Roman",
                                          "Liberation Serif", "DejaVu Serif", "Serif", nullptr };
+       #if JUCE_EMSCRIPTEN
+        if (allFonts.isEmpty())
+            return getDefaultSansSerifFontName();
+       #endif
         return pickBestFont (allFonts, targets);
     }
 
