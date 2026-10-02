@@ -318,7 +318,7 @@
     prNoteH: coarse ? 16 : 12,
     stepRowH: coarse ? 32 : 26,
     stepCell: coarse ? 30 : 24,
-    kbOctave: 4,
+    kbOctave: 5,
     selectedPad: 0,
     follow: true
   };

@@ -846,6 +846,14 @@
   box-sizing: border-box;
 }
 
+.dm-panel {
+  overflow-y: auto;
+}
+
+.dm-panel > * {
+  flex-shrink: 0;
+}
+
 .dm-panel h3 {
   margin: 0;
   font-size: 14px;
