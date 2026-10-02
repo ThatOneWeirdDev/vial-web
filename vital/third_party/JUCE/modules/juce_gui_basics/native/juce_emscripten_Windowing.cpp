@@ -107,12 +107,65 @@ EM_JS (void, juce_web_setup, (), {
         document.body.appendChild (W.root);
     }
 
-    W.root.style.position = "fixed";
-    W.root.style.left = "0";
-    W.root.style.top = "0";
-    W.root.style.width = "100%";
-    W.root.style.height = "100%";
     W.root.style.overflow = "hidden";
+    W.lastW = 0;
+    W.lastH = 0;
+    W.touches = {};
+
+    W.rootMetrics = function() {
+        var r = W.root.getBoundingClientRect();
+        var cw = W.root.clientWidth, ch = W.root.clientHeight;
+        return {
+            left: r.left, top: r.top,
+            sx: (r.width > 0 && cw > 0) ? cw / r.width : 1,
+            sy: (r.height > 0 && ch > 0) ? ch / r.height : 1
+        };
+    };
+
+    W.localPoint = function (e) {
+        var m = W.rootMetrics();
+        return { x: (e.clientX - m.left) * m.sx, y: (e.clientY - m.top) * m.sy };
+    };
+
+    W.viewportSize = function() {
+        var w = W.root.clientWidth, h = W.root.clientHeight;
+        if (w > 0 && h > 0)
+        {
+            W.lastW = w;
+            W.lastH = h;
+        }
+        if (W.lastW > 0 && W.lastH > 0)
+            return { w: W.lastW, h: W.lastH };
+        return { w: Math.max (1, Math.floor (window.innerWidth)), h: Math.max (1, Math.floor (window.innerHeight)) };
+    };
+
+    W.touchIndexFor = function (e, create) {
+        if (W.touches.hasOwnProperty (e.pointerId))
+            return W.touches[e.pointerId];
+        if (! create)
+            return -1;
+        var used = {};
+        for (var k in W.touches) used[W.touches[k]] = true;
+        var idx = 0;
+        while (used[idx]) idx++;
+        W.touches[e.pointerId] = idx;
+        return idx;
+    };
+
+    W.touchCount = function() {
+        var n = 0;
+        for (var k in W.touches) n++;
+        return n;
+    };
+
+    W.sendTouch = function (id, type, e, idx) {
+        var pt = W.localPoint (e);
+        W.vx = pt.x;
+        W.vy = pt.y;
+        var others = W.touchCount() > ((type == 2 || type == 3) ? 0 : 1) ? 1 : 0;
+        var flags = (type == 1) ? 16 : 0;
+        Module._juce_web_touch (id, type, pt.x, pt.y, flags, W.keyMods (e), idx, others);
+    };
 
     W.keyMods = function (e) {
         var m = 0;
@@ -145,8 +198,9 @@ EM_JS (void, juce_web_setup, (), {
                 W.warpY = 0;
             }
 
-            W.vx = e.clientX + W.warpX;
-            W.vy = e.clientY + W.warpY;
+            var pt = W.localPoint (e);
+            W.vx = pt.x + W.warpX;
+            W.vy = pt.y + W.warpY;
         }
     };
 
@@ -205,8 +259,16 @@ EM_JS (void, juce_web_setup, (), {
 
         div.addEventListener ("pointerdown", function (e) {
             e.preventDefault();
-            if (! e.isPrimary && e.pointerType == "touch")
+            if (e.pointerType == "touch")
+            {
+                var idx = W.touchIndexFor (e, true);
+                try { div.setPointerCapture (e.pointerId); } catch (err) {}
+                Module._juce_web_activate (id);
+                W.sendTouch (id, 0, e, idx);
+                W.sendTouch (id, 1, e, idx);
+                if (W.onUserGesture) W.onUserGesture();
                 return;
+            }
             try { div.setPointerCapture (e.pointerId); } catch (err) {}
             W.capturePeer = id;
             W.buttons |= W.translateButton (e);
@@ -217,8 +279,13 @@ EM_JS (void, juce_web_setup, (), {
         });
 
         div.addEventListener ("pointermove", function (e) {
-            if (! e.isPrimary && e.pointerType == "touch")
+            if (e.pointerType == "touch")
+            {
+                var idx = W.touchIndexFor (e, false);
+                if (idx >= 0)
+                    W.sendTouch (id, 1, e, idx);
                 return;
+            }
             W.updatePosition (e);
             var target = W.peerForEvent (e, id);
             if (W.buttons == 0 && target != id)
@@ -227,8 +294,18 @@ EM_JS (void, juce_web_setup, (), {
         });
 
         var release = function (e) {
-            if (! e.isPrimary && e.pointerType == "touch")
+            if (e.pointerType == "touch")
+            {
+                var idx = W.touchIndexFor (e, false);
+                if (idx < 0)
+                    return;
+                delete W.touches[e.pointerId];
+                try { div.releasePointerCapture (e.pointerId); } catch (err) {}
+                W.sendTouch (id, 2, e, idx);
+                W.sendTouch (id, 3, e, idx);
+                if (W.onUserGesture) W.onUserGesture();
                 return;
+            }
             W.updatePosition (e);
             var target = W.peerForEvent (e, id);
             W.buttons &= ~W.translateButton (e);
@@ -251,6 +328,8 @@ EM_JS (void, juce_web_setup, (), {
         div.addEventListener ("pointercancel", release);
 
         div.addEventListener ("pointerleave", function (e) {
+            if (e.pointerType == "touch")
+                return;
             if (W.buttons != 0 || document.pointerLockElement)
                 return;
             W.updatePosition (e);
@@ -455,6 +534,7 @@ EM_JS (void, juce_web_setup, (), {
 
     window.addEventListener ("blur", function() {
         W.buttons = 0;
+        W.touches = {};
         Module._juce_web_window_focus (0);
     });
 
@@ -467,6 +547,11 @@ EM_JS (void, juce_web_setup, (), {
         Module._juce_web_resized();
     };
     window.addEventListener ("resize", onResize);
+    if (window.ResizeObserver)
+        new ResizeObserver (function() {
+            if (W.root.clientWidth > 0 && W.root.clientHeight > 0 && (W.root.clientWidth != W.lastW || W.root.clientHeight != W.lastH))
+                onResize();
+        }).observe (W.root);
     if (window.visualViewport)
         window.visualViewport.addEventListener ("resize", onResize);
 
@@ -591,11 +676,13 @@ EM_JS (float, juce_web_mouseY, (), {
 });
 
 EM_JS (int, juce_web_viewportWidth, (), {
-    return Math.max (1, Math.floor (window.innerWidth));
+    var W = Module.juceWeb;
+    return W ? W.viewportSize().w : Math.max (1, Math.floor (window.innerWidth));
 });
 
 EM_JS (int, juce_web_viewportHeight, (), {
-    return Math.max (1, Math.floor (window.innerHeight));
+    var W = Module.juceWeb;
+    return W ? W.viewportSize().h : Math.max (1, Math.floor (window.innerHeight));
 });
 
 EM_JS (double, juce_web_devicePixelRatio, (), {
@@ -1059,6 +1146,31 @@ public:
                           MouseInputSource::invalidOrientation, time, {}, 0);
     }
 
+    void handleTouch (int type, Point<float> globalPos, int buttonFlags, int keyMods, int touchIndex, bool othersDown)
+    {
+        WebPeers::setKeyModifiers (keyMods);
+        WebPeers::setMouseButtons (buttonFlags);
+
+        auto local = globalToLocal (globalPos);
+        auto time = Time::getMillisecondCounter();
+        auto mods = ModifierKeys::currentModifiers;
+
+        if (type == 3)
+        {
+            mods = mods.withoutMouseButtons();
+            local = { -10000.0f, -10000.0f };
+        }
+
+        handleMouseEvent (MouseInputSource::InputSourceType::touch, local, mods,
+                          type == 2 || type == 3 ? 0.0f : 1.0f,
+                          MouseInputSource::invalidOrientation, time, {}, touchIndex);
+
+        if (othersDown)
+            ModifierKeys::currentModifiers = ModifierKeys::currentModifiers.withoutMouseButtons().withFlags (ModifierKeys::leftButtonModifier);
+        else if (type == 2 || type == 3)
+            ModifierKeys::currentModifiers = ModifierKeys::currentModifiers.withoutMouseButtons();
+    }
+
     void handleWheel (Point<float> globalPos, float dx, float dy, int keyMods, bool smooth)
     {
         WebPeers::setKeyModifiers (keyMods);
@@ -1139,6 +1251,12 @@ extern "C" EMSCRIPTEN_KEEPALIVE void juce_web_pointer (int id, int type, float x
 {
     if (auto* peer = WebPeers::find (id))
         peer->handlePointer (type, { x, y }, buttonFlags, keyMods, isTouch != 0);
+}
+
+extern "C" EMSCRIPTEN_KEEPALIVE void juce_web_touch (int id, int type, float x, float y, int buttonFlags, int keyMods, int touchIndex, int othersDown)
+{
+    if (auto* peer = WebPeers::find (id))
+        peer->handleTouch (type, { x, y }, buttonFlags, keyMods, touchIndex, othersDown != 0);
 }
 
 extern "C" EMSCRIPTEN_KEEPALIVE void juce_web_wheel (int id, float x, float y, float dx, float dy, int keyMods, int smooth)
@@ -1320,10 +1438,11 @@ void Desktop::allowedOrientationsChanged()                          {}
 
 bool MouseInputSource::SourceList::addSource()
 {
-    if (sources.size() < 2)
+    if (sources.size() < 11)
     {
-        addSource (sources.size(), sources.size() == 0 ? MouseInputSource::InputSourceType::mouse
-                                                       : MouseInputSource::InputSourceType::touch);
+        addSource (sources.size() == 0 ? 0 : sources.size() - 1,
+                   sources.size() == 0 ? MouseInputSource::InputSourceType::mouse
+                                       : MouseInputSource::InputSourceType::touch);
         return true;
     }
 

@@ -14,6 +14,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
   <meta name="apple-mobile-web-app-title" content="Vial">
   <script src="coi-serviceworker.js"></script>
+  <link rel="stylesheet" href="daw.css">
   <style>
     :root {
       --bg: #1d2125;
@@ -36,7 +37,7 @@
     }
 
     #juce-root {
-      position: fixed;
+      position: absolute;
       inset: 0;
       overflow: hidden;
       background: var(--bg);
@@ -153,13 +154,21 @@
   </style>
 </head>
 <body>
-  <div id="juce-root"></div>
+  <div id="app">
+    <header id="bar"></header>
+    <main id="stage">
+      <div id="juce-root"></div>
+      <section id="view-tracks" class="view"></section>
+      <section id="view-mixer" class="view hidden"></section>
+      <section id="view-drums" class="view hidden"></section>
+    </main>
+  </div>
 
   <div id="loader">
     <div class="card">
       <div class="mark">V</div>
       <h1>Vial</h1>
-      <p class="sub">Spectral warping wavetable synthesizer</p>
+      <p class="sub">Wavetable synthesizer &amp; music studio</p>
       <div class="bar"><div id="progress"></div></div>
       <div id="status">Loading…</div>
       <div class="legal">
@@ -174,6 +183,7 @@
 
   <div id="audio-hint" class="hidden">Click anywhere to start audio</div>
 
+  <script src="daw.js"></script>
   <script src="vial_shell.js"></script>
 </body>
 </html>

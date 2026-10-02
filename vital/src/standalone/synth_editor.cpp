@@ -29,6 +29,9 @@
 SynthEditor::SynthEditor(bool use_gui) : SynthGuiInterface(this, use_gui) {
   static constexpr int kHeightBuffer = 50;
 
+  daw_ = std::make_unique<DawEngine>(this);
+  DawEngine::instance = daw_.get();
+
   computer_keyboard_ = std::make_unique<SynthComputerKeyboard>(engine_.get(), keyboard_state_.get());
   current_time_ = 0.0;
 
@@ -84,12 +87,14 @@ SynthEditor::SynthEditor(bool use_gui) : SynthGuiInterface(this, use_gui) {
 SynthEditor::~SynthEditor() {
   PopupMenu::dismissAllActiveMenus();
   shutdownAudio();
+  DawEngine::instance = nullptr;
 }
 
 void SynthEditor::prepareToPlay(int buffer_size, double sample_rate) {
   engine_->setSampleRate(sample_rate);
   engine_->updateAllModulationSwitches();
   midi_manager_->setSampleRate(sample_rate);
+  daw_->prepare(sample_rate);
 }
 
 void SynthEditor::getNextAudioBlock(const AudioSourceChannelInfo& buffer) {
@@ -103,15 +108,21 @@ void SynthEditor::getNextAudioBlock(const AudioSourceChannelInfo& buffer) {
   midi_manager_->removeNextBlockOfMessages(midi_messages, num_samples);
   processKeyboardEvents(midi_messages, num_samples);
 
+  MidiBuffer synth_messages;
+  daw_->beginBlock(midi_messages, num_samples, synth_messages);
+  engine_->setBpm((float)daw_->bpm());
+
   double sample_time = 1.0 / getSampleRate();
   for (int b = 0; b < num_samples; b += synth_samples) {
     int current_samples = std::min<int>(synth_samples, num_samples - b);
     engine_->correctToTime(current_time_);
 
-    processMidi(midi_messages, b, b + current_samples);
+    processMidi(synth_messages, b, b + current_samples);
     processAudio(buffer.buffer, vital::kNumChannels, current_samples, b);
     current_time_ += current_samples * sample_time;
   }
+
+  daw_->endBlock(*buffer.buffer, num_samples);
 }
 
 void SynthEditor::releaseResources() {
@@ -122,7 +133,48 @@ void SynthEditor::resized() {
     gui_->setBounds(getLocalBounds());
 }
 
+std::string SynthEditor::getGuiSynthState() {
+  return saveToJson().dump();
+}
+
+bool SynthEditor::setGuiSynthState(const std::string& state) {
+  json parsed = json::parse(state, nullptr, false);
+  if (parsed.is_discarded())
+    return false;
+
+  bool result = false;
+  try {
+    result = loadFromJson(parsed);
+  }
+  catch (...) {
+    result = false;
+  }
+
+  clearActiveFile();
+  updateFullGui();
+  notifyFresh();
+  return result;
+}
+
+void SynthEditor::initGuiSynth() {
+  loadInitPreset();
+  clearActiveFile();
+  updateFullGui();
+  notifyFresh();
+}
+
+int SynthEditor::getComputerKeyboardOffset() {
+  return computer_keyboard_->getKeyboardOffset();
+}
+
+void SynthEditor::setComputerKeyboardOffset(int offset) {
+  computer_keyboard_->changeKeyboardOffset(offset);
+}
+
 void SynthEditor::timerCallback() {
+  if (AudioIODevice* device = deviceManager.getCurrentAudioDevice())
+    daw_->setLatency(device->getOutputLatencyInSamples());
+
   StringArray midi_ins(MidiInput::getDevices());
 
   for (int i = 0; i < midi_ins.size(); ++i) {

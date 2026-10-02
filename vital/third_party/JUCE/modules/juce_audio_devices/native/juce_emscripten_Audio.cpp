@@ -2,7 +2,7 @@ namespace juce
 {
 
 EM_JS (void, juce_webaudio_open, (int deviceId, double sampleRate, int numChannels, int capacity,
-                                  float* channelData, int* readIndex, int* writeIndex), {
+                                  float* channelData, int* readIndex, int* writeIndex, int* underrunIndex), {
     var A = Module.juceAudio = Module.juceAudio || { devices: {} };
 
     if (! A.gestureHooked)
@@ -41,6 +41,7 @@ EM_JS (void, juce_webaudio_open, (int deviceId, double sampleRate, int numChanne
             "        this.data = d.data;",
             "        this.readIndex = d.readIndex;",
             "        this.writeIndex = d.writeIndex;",
+            "        this.underrunIndex = d.underrunIndex;",
             "        this.ready = true;",
             "      } else if (d.type === 'stop') {",
             "        this.ready = false;",
@@ -58,20 +59,29 @@ EM_JS (void, juce_webaudio_open, (int deviceId, double sampleRate, int numChanne
             "    const r = Atomics.load(this.i32, this.readIndex);",
             "    const w = Atomics.load(this.i32, this.writeIndex);",
             "    const available = (w - r) | 0;",
-            "    if (available >= frames) {",
+            "    const take = available < 0 ? 0 : Math.min(available, frames);",
+            "    if (take > 0) {",
             "      const pos = r & this.mask;",
-            "      const first = Math.min(frames, this.capacity - pos);",
+            "      const first = Math.min(take, this.capacity - pos);",
             "      for (let c = 0; c < out.length; c++) {",
             "        const base = this.data + Math.min(c, this.channels - 1) * this.capacity;",
             "        const dst = out[c];",
             "        dst.set(this.f32.subarray(base + pos, base + pos + first), 0);",
-            "        if (first < frames) dst.set(this.f32.subarray(base, base + frames - first), first);",
+            "        if (first < take) dst.set(this.f32.subarray(base, base + take - first), first);",
+            "        if (take < frames) {",
+            "          const last = dst[take - 1];",
+            "          for (let i = take; i < frames; i++) dst[i] = last * (1 - (i - take + 1) / (frames - take + 1));",
+            "        }",
             "      }",
-            "      Atomics.store(this.i32, this.readIndex, (r + frames) | 0);",
+            "      Atomics.store(this.i32, this.readIndex, (r + take) | 0);",
             "    } else {",
             "      for (let c = 0; c < out.length; c++) out[c].fill(0);",
-            "      this.underruns++;",
             "    }",
+            "    if (take < frames && this.started) {",
+            "      this.underruns++;",
+            "      Atomics.add(this.i32, this.underrunIndex, 1);",
+            "    }",
+            "    if (take > 0) this.started = true;",
             "    Atomics.notify(this.i32, this.readIndex);",
             "    return true;",
             "  }",
@@ -106,7 +116,8 @@ EM_JS (void, juce_webaudio_open, (int deviceId, double sampleRate, int numChanne
             capacity: capacity,
             data: channelData >> 2,
             readIndex: readIndex >> 2,
-            writeIndex: writeIndex >> 2
+            writeIndex: writeIndex >> 2,
+            underrunIndex: underrunIndex >> 2
         });
         node.connect (ctx.destination);
         dev.node = node;
@@ -116,6 +127,31 @@ EM_JS (void, juce_webaudio_open, (int deviceId, double sampleRate, int numChanne
         console.error ("Audio worklet failed to load", err);
     });
 });
+
+EM_JS (int, juce_webaudio_isMobile, (), {
+    try {
+        if (window.matchMedia && window.matchMedia ("(pointer: coarse)").matches)
+            return 1;
+        if (navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 4)
+            return 1;
+    } catch (err) {}
+    return 0;
+});
+
+EM_JS (int, juce_webaudio_storedFill, (), {
+    try {
+        var v = parseInt (localStorage.getItem ("vial-audio-fill") || "0");
+        return isFinite (v) ? Math.min (v, 8192) : 0;
+    } catch (err) {}
+    return 0;
+});
+
+static void juce_webaudio_storeFill (int fill)
+{
+    MAIN_THREAD_ASYNC_EM_ASM ({
+        try { localStorage.setItem ("vial-audio-fill", String ($0)); } catch (err) {}
+    }, fill);
+}
 
 EM_JS (double, juce_webaudio_actualSampleRate, (int deviceId), {
     var A = Module.juceAudio;
@@ -204,21 +240,24 @@ public:
         activeOutputs.setRange (2, activeOutputs.getHighestBit() + 1, false);
         numOutputs = jmax (1, activeOutputs.countNumberOfSetBits());
 
-        targetFill = jmax (blockSize * 2, 512);
+        minimumFill = jmax (blockSize * 2, juce_webaudio_isMobile() ? 2048 : 1024);
+        targetFill = jmax (minimumFill, juce_webaudio_storedFill());
+        maximumFill = jmax (minimumFill, 8192);
         capacity = 1;
 
-        while (capacity < targetFill + blockSize * 2 + 256)
+        while (capacity < maximumFill + blockSize * 2 + 256)
             capacity <<= 1;
 
         ringData.calloc ((size_t) (capacity * numOutputs));
         indices.calloc (16);
         indices[0] = 0;
         indices[4] = 0;
+        indices[8] = 0;
 
         renderBuffer.setSize (numOutputs, blockSize);
 
         juce_webaudio_open (deviceId, sampleRate, numOutputs, capacity, ringData.getData(),
-                            indices.getData(), indices.getData() + 4);
+                            indices.getData(), indices.getData() + 4, indices.getData() + 8);
 
         currentSampleRate = juce_webaudio_actualSampleRate (deviceId);
 
@@ -309,10 +348,45 @@ private:
     {
         auto* readIndex = indices.getData();
         auto* writeIndex = indices.getData() + 4;
+        auto* underrunCount = indices.getData() + 8;
         auto mask = capacity - 1;
+        int lastUnderruns = 0;
+        int64 lastGrowth = 0;
+        int64 lastEpisode = -100000;
+        int64 cleanSince = Time::getMillisecondCounter();
 
         while (! threadShouldExit())
         {
+            auto underruns = __atomic_load_n (underrunCount, __ATOMIC_SEQ_CST);
+
+            if (underruns != lastUnderruns)
+            {
+                lastUnderruns = underruns;
+                auto now = (int64) Time::getMillisecondCounter();
+                cleanSince = now;
+
+                bool repeated = false;
+
+                if (now - lastEpisode > 300)
+                {
+                    repeated = now - lastEpisode < 5000;
+                    lastEpisode = now;
+                }
+
+                if (repeated && now - lastGrowth > 250 && targetFill < maximumFill)
+                {
+                    lastGrowth = now;
+                    targetFill = jmin (maximumFill, targetFill + jmax (512, targetFill / 2));
+                    juce_webaudio_storeFill (targetFill);
+                }
+            }
+            else if (targetFill > minimumFill && (int64) Time::getMillisecondCounter() - cleanSince > 60000)
+            {
+                cleanSince = Time::getMillisecondCounter();
+                targetFill = jmax (minimumFill, targetFill - 256);
+                juce_webaudio_storeFill (targetFill);
+            }
+
             auto r = __atomic_load_n (readIndex, __ATOMIC_SEQ_CST);
             auto w = __atomic_load_n (writeIndex, __ATOMIC_SEQ_CST);
             auto filled = w - r;
@@ -364,7 +438,7 @@ private:
     CriticalSection callbackLock;
     AudioIODeviceCallback* callback = nullptr;
     double currentSampleRate = 44100.0;
-    int blockSize = 256, capacity = 4096, targetFill = 512, numOutputs = 2;
+    int blockSize = 256, capacity = 4096, targetFill = 512, minimumFill = 512, maximumFill = 8192, numOutputs = 2;
     bool isOpenFlag = false;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (WebAudioIODevice)

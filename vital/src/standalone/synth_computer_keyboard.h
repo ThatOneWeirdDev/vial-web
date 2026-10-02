@@ -34,6 +34,7 @@ class SynthComputerKeyboard : public vital::StringLayout, public KeyListener {
     ~SynthComputerKeyboard();
 
     void changeKeyboardOffset(int new_offset);
+    int getKeyboardOffset() const { return computer_keyboard_offset_; }
 
     // KeyListener
     bool keyPressed(const KeyPress &key, Component *origin) override;

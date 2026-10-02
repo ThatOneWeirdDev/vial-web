@@ -47,7 +47,7 @@ LDFLAGS := $(LINKOPT) -pthread -msimd128 -sUSE_FREETYPE=1 \
 	-sALLOW_MEMORY_GROWTH=1 -sINITIAL_MEMORY=268435456 -sMAXIMUM_MEMORY=2147483648 \
 	-sSTACK_SIZE=4194304 -sDEFAULT_PTHREAD_STACK_SIZE=2097152 -sPTHREAD_POOL_SIZE=12 \
 	-sENVIRONMENT=web,worker -sEXIT_RUNTIME=0 -sOFFSCREEN_FRAMEBUFFER=0 \
-	-sEXPORTED_RUNTIME_METHODS=ccall,cwrap,UTF8ToString,stringToUTF8,lengthBytesUTF8,FS,IDBFS,addRunDependency,removeRunDependency \
+	-sEXPORTED_RUNTIME_METHODS=ccall,cwrap,UTF8ToString,stringToUTF8,lengthBytesUTF8,FS,IDBFS,wasmMemory,addRunDependency,removeRunDependency \
 	-sEXPORTED_FUNCTIONS=_main,_malloc,_free \
 	-sMODULARIZE=1 -sEXPORT_NAME=createVialModule \
 	-lidbfs.js -lGL
@@ -82,7 +82,7 @@ $(OUT)/vial.js: $(OBJECTS)
 	$(EMXX) $(OBJECTS) $(LDFLAGS) -o $@
 
 site: $(OUT)/vial.js
-	cp web/index.html web/coi-serviceworker.js web/vial_shell.js web/icon.png web/icon-180.png web/icon-192.png web/icon-512.png web/manifest.webmanifest $(OUT)/
+	cp web/index.html web/coi-serviceworker.js web/vial_shell.js web/icon.png web/icon-180.png web/icon-192.png web/icon-512.png web/manifest.webmanifest web/daw.js web/daw.css $(OUT)/
 	touch $(OUT)/.nojekyll
 
 clean:

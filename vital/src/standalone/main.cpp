@@ -101,17 +101,7 @@ class WebEditorContainer : public Component {
       if (editor_ == nullptr || getWidth() <= 0 || getHeight() <= 0)
         return;
 
-      float ratio = (1.0f * vital::kDefaultWindowWidth) / vital::kDefaultWindowHeight;
-      int width = getWidth();
-      int height = std::round(width / ratio);
-      if (height > getHeight()) {
-        height = getHeight();
-        width = std::round(height * ratio);
-      }
-
-      width = std::max(width, 1);
-      height = std::max(height, 1);
-      editor_->setBounds((getWidth() - width) / 2, (getHeight() - height) / 2, width, height);
+      editor_->setBounds(getLocalBounds());
     }
 
     void childBoundsChanged(Component* child) override {
@@ -201,8 +191,21 @@ class SynthApplication : public JUCEApplication {
 
         void fitToBrowser() {
           const Displays::Display* display = Desktop::getInstance().getDisplays().getPrimaryDisplay();
-          if (display)
-            setBounds(display->userArea);
+          if (display == nullptr)
+            return;
+
+          Rectangle<int> area = display->userArea;
+          float ratio = (1.0f * vital::kDefaultWindowWidth) / vital::kDefaultWindowHeight;
+          int width = area.getWidth();
+          int height = std::round(width / ratio);
+          if (height > area.getHeight()) {
+            height = area.getHeight();
+            width = std::round(height * ratio);
+          }
+
+          width = std::max(width, 1);
+          height = std::max(height, 1);
+          setBounds(area.getX() + (area.getWidth() - width) / 2, area.getY() + (area.getHeight() - height) / 2, width, height);
         }
 
         void parentSizeChanged() override {

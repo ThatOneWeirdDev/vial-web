@@ -20,10 +20,11 @@
 
 #include "synth_base.h"
 #include "synth_gui_interface.h"
+#include "daw_engine.h"
 
 class SynthComputerKeyboard;
 
-class SynthEditor : public AudioAppComponent, public SynthBase, public SynthGuiInterface, public Timer {
+class SynthEditor : public AudioAppComponent, public SynthBase, public SynthGuiInterface, public Timer, public DawHost {
   public:
     SynthEditor(bool use_gui = true);
     ~SynthEditor();
@@ -49,7 +50,16 @@ class SynthEditor : public AudioAppComponent, public SynthBase, public SynthGuiI
     
     void animate(bool animate);
 
+    std::string getGuiSynthState() override;
+    bool setGuiSynthState(const std::string& state) override;
+    void initGuiSynth() override;
+    int getComputerKeyboardOffset() override;
+    void setComputerKeyboardOffset(int offset) override;
+    const CriticalSection& getAudioLock() override { return critical_section_; }
+    String getGuiPresetName() override { return getPresetName(); }
+
   private:
+    std::unique_ptr<DawEngine> daw_;
     std::unique_ptr<SynthComputerKeyboard> computer_keyboard_;
     CriticalSection critical_section_;
     StringArray current_midi_ins_;

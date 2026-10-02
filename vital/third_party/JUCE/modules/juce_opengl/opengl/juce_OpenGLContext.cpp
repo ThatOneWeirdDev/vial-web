@@ -162,9 +162,32 @@ public:
 
         runPendingWork();
 
+        if (EM_ASM_INT ({ return Module.vialHideGL ? 1 : 0; }) != 0)
+            return;
+
+        if (++frameCounter < frameStride)
+            return;
+
+        frameCounter = 0;
+
         if (context.continuousRepaint || needsUpdate)
+        {
+            auto startTime = Time::getMillisecondCounterHiRes();
             renderFrame();
+            auto elapsed = Time::getMillisecondCounterHiRes() - startTime;
+            averageFrameTime = averageFrameTime * 0.9 + elapsed * 0.1;
+
+            if (averageFrameTime > 22.0)
+                frameStride = 3;
+            else if (averageFrameTime > 11.0)
+                frameStride = jmax (frameStride, 2);
+            else if (averageFrameTime < 6.0)
+                frameStride = 1;
+        }
     }
+
+    int frameCounter = 0, frameStride = 1;
+    double averageFrameTime = 0.0;
    #else
     void start()
     {

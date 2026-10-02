@@ -198,6 +198,7 @@
     try {
       var module = await createVialModule(moduleConfig);
       window.VialModule = module;
+      window.dispatchEvent(new Event("vial-ready"));
       setupPersistence(module);
       setProgress(1);
       hideLoader();

@@ -62,35 +62,59 @@ class MidiKeyboard : public OpenGlComponent {
     }
 
     void mouseDown(const MouseEvent& e) override {
-      hover_note_ = getNoteAtPosition(e.position);
-      state_.noteOn(midi_channel_, hover_note_, getVelocityForNote(hover_note_, e.position));
+      int note = getNoteAtPosition(e.position);
+      int source = sourceKey(e);
+      auto existing = source_notes_.find(source);
+      if (existing != source_notes_.end())
+        releaseSourceNote(existing->second, source);
+      source_notes_[source] = note;
+      if (e.source.isMouse())
+        hover_note_ = note;
+      state_.noteOn(midi_channel_, note, getVelocityForNote(note, e.position));
     }
 
     void mouseUp(const MouseEvent& e) override {
-      state_.noteOff(midi_channel_, hover_note_, 0.0f);
-      hover_note_ = getNoteAtPosition(e.position);
+      int source = sourceKey(e);
+      auto existing = source_notes_.find(source);
+      if (existing != source_notes_.end()) {
+        int note = existing->second;
+        source_notes_.erase(existing);
+        releaseSourceNote(note, source);
+      }
+      hover_note_ = e.source.isMouse() ? getNoteAtPosition(e.position) : -1;
     }
 
     void mouseEnter(const MouseEvent& e) override {
-      hover_note_ = getNoteAtPosition(e.position);
+      if (e.source.isMouse())
+        hover_note_ = getNoteAtPosition(e.position);
     }
 
     void mouseExit(const MouseEvent& e) override {
-      hover_note_ = -1;
+      if (e.source.isMouse())
+        hover_note_ = -1;
     }
 
     void mouseDrag(const MouseEvent& e) override {
-      int note = getNoteAtPosition(e.position);
-      if (note == hover_note_)
+      int source = sourceKey(e);
+      auto existing = source_notes_.find(source);
+      if (existing == source_notes_.end())
         return;
 
-      state_.noteOff(midi_channel_, hover_note_, 0.0f);
+      int note = getNoteAtPosition(e.position);
+      if (note == existing->second)
+        return;
+
+      int old_note = existing->second;
+      existing->second = note;
+      releaseSourceNote(old_note, source);
       state_.noteOn(midi_channel_, note, getVelocityForNote(note, e.position));
-      hover_note_ = note;
+      if (e.source.isMouse())
+        hover_note_ = note;
     }
 
     void mouseMove(const MouseEvent& e) override {
-      hover_note_ = getNoteAtPosition(e.position);
+      if (e.source.isMouse())
+        hover_note_ = getNoteAtPosition(e.position);
     }
 
     void setMidiChannel(int channel) { midi_channel_ = channel; }
@@ -102,8 +126,21 @@ class MidiKeyboard : public OpenGlComponent {
 
     MidiKeyboardState& state_;
 
+    static int sourceKey(const MouseEvent& e) {
+      return e.source.isTouch() ? 1 + e.source.getIndex() : 0;
+    }
+
+    void releaseSourceNote(int note, int source) {
+      for (auto& other : source_notes_) {
+        if (other.first != source && other.second == note)
+          return;
+      }
+      state_.noteOff(midi_channel_, note, 0.0f);
+    }
+
     int midi_channel_;
     int hover_note_;
+    std::map<int, int> source_notes_;
 
     OpenGlMultiQuad black_notes_;
     OpenGlMultiQuad white_pressed_notes_;
